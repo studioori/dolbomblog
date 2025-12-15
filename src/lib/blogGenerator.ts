@@ -38,35 +38,19 @@ const getRandomItem = <T>(arr: T[]): T => {
 };
 
 const expandReaction = (reaction: string): string => {
-  const expansions: Record<string, string[]> = {
-    '적극적으로 참여': [
-      '평소보다 더 활기차게 참여하시는 모습이 보기 좋았어요',
-      '누구보다 먼저 나서시며 의욕을 보여주셨답니다',
-    ],
-    '즐거워하심': [
-      '연신 "재밌다, 재밌어" 하시며 환하게 웃으셨어요',
-      '오랜만에 이렇게 신나셨는지, 아이처럼 좋아하셨답니다',
-    ],
-    '집중하심': [
-      '눈을 반짝이시며 온 마음을 쏟으시는 모습이 인상적이었어요',
-      '조용히 집중하시는 그 진지한 눈빛이 참 아름다웠어요',
-    ],
-    '친구분들과 대화': [
-      '옆자리 어르신과 도란도란 이야기꽃을 피우셨어요',
-      '서로 칭찬도 해주시고, 웃음소리가 끊이지 않았답니다',
-    ],
-    '뿌듯해하심': [
-      '완성된 작품을 보시며 "내가 이걸 다 했어?" 하고 뿌듯해하셨어요',
-      '다 마치시고 나서 어깨가 으쓱해지신 게 느껴졌답니다',
-    ],
-    '처음엔 어려워하심': [
-      '처음엔 "어휴, 이걸 어떻게 해" 하시더니, 금세 요령을 터득하셨어요',
-      '낯설어하시다가도 금방 손이 익으시더라고요',
-    ],
-  };
-
-  return expansions[reaction]?.[Math.floor(Math.random() * 2)] || 
-    `${reaction} 모습이 참 보기 좋았어요`;
+  // 반응 문구가 이미 완성된 형태이므로, 자연스러운 문장으로 연결
+  // "~하시며" 형태로 끝나는 반응은 그대로 활용
+  if (reaction.endsWith('하시며') || reaction.endsWith('시며')) {
+    const connectors = [
+      `${reaction}, 그 모습이 참 보기 좋았어요.`,
+      `${reaction}, 보는 저희도 덩달아 기분이 좋아졌답니다.`,
+      `${reaction}, 그 순간이 참 따뜻했어요.`,
+    ];
+    return getRandomItem(connectors);
+  }
+  
+  // 다른 형태의 반응은 자연스럽게 연결
+  return `${reaction} 모습이 참 보기 좋았어요.`;
 };
 
 const getEffectNarrative = (effects: string[], categoryId: string): string => {
@@ -109,7 +93,7 @@ const getClosingReflection = (centerName: string): string => {
 
 export const generateBlogContent = async (input: BlogInput): Promise<GeneratedBlog> => {
   const categoryInfo = CATEGORIES.find(c => c.id === input.category)!;
-  const centerName = input.centerName || '의정부 늘봄종합복지센터';
+  const centerName = '의정부 늘봄종합복지센터'; // 하드코딩된 센터명
   
   // 계절 인사
   const seasonalIntros = getSeasonalIntro();
