@@ -1,117 +1,180 @@
 import { type BlogInput, type GeneratedBlog, CATEGORIES } from '@/types/blog';
 
-// 참고 블로그 스타일을 반영한 글 생성 로직
-// 추후 Lovable Cloud의 AI 기능으로 대체 예정
+// 의정부 늘봄종합복지센터 스타일 글 생성
+// 추후 Lovable Cloud AI로 대체 예정
 
-const getWeatherIntro = (): string => {
-  const intros = [
-    '오늘도 맑은 햇살이 가득한 하루입니다.',
-    '선선한 바람이 불어오는 좋은 날씨예요.',
-    '포근한 날씨와 함께 활기찬 하루가 시작되었습니다.',
-    '따스한 햇살이 센터를 환하게 비추는 날이에요.',
-    '오늘도 어르신들의 웃음소리가 가득한 하루입니다.',
-  ];
-  return intros[Math.floor(Math.random() * intros.length)];
+const getSeasonalIntro = (): string[] => {
+  const month = new Date().getMonth() + 1;
+  
+  if (month >= 3 && month <= 5) {
+    return [
+      '창밖으로 봄바람이 살랑거리는 요즘, 어르신들 얼굴에도 봄꽃처럼 환한 미소가 피어나요.',
+      '따스한 햇살이 센터 안까지 스며드는 오늘, 어르신들 표정도 한결 밝아 보여요.',
+      '봄비가 촉촉이 내린 뒤라 그런지, 공기가 유난히 상쾌한 하루예요.',
+    ];
+  } else if (month >= 6 && month <= 8) {
+    return [
+      '여름 햇살이 눈부시게 쏟아지는 오늘, 에어컨 바람이 시원하게 감도는 센터 안이 더없이 아늑해요.',
+      '장마가 잠시 쉬어가는 틈을 타, 어르신들 얼굴에도 청명한 기운이 감돌아요.',
+      '무더운 날씨지만 센터 안은 시원하고, 어르신들 웃음소리는 더 청량하게 울려 퍼져요.',
+    ];
+  } else if (month >= 9 && month <= 11) {
+    return [
+      '선선한 가을바람이 불어오니, 어르신들 발걸음도 한결 가벼워 보여요.',
+      '창밖 단풍이 곱게 물드는 계절, 센터 안에도 따뜻한 정이 물들어가요.',
+      '하늘이 유난히 높고 맑은 오늘, 어르신들 눈빛도 그만큼 반짝여요.',
+    ];
+  } else {
+    return [
+      '찬바람이 옷깃을 여미게 하는 겨울이지만, 센터 안은 어르신들 웃음으로 늘 따뜻해요.',
+      '뽀얀 입김이 나는 추운 날씨에도, 센터에 오시면 금세 볼이 발그레해지시는 어르신들이에요.',
+      '겨울 햇살이 포근하게 감싸는 오늘, 어르신들과 함께하는 시간이 더없이 소중하게 느껴져요.',
+    ];
+  }
 };
 
-const getClosing = (centerName: string): string => {
-  return `
-${centerName}은
-어르신께서 활동을 하실 때에도
-숙련된 요양 보호사 선생님들이 곁에 상주하여
-어르신의 건강 상태를 살피고
-세심히 케어를 도와드리고 있습니다.
+const getRandomItem = <T>(arr: T[]): T => {
+  return arr[Math.floor(Math.random() * arr.length)];
+};
 
-센터의 내부시설이나 활동 등이
-궁금하신 보호자님들께서는
-언제든 편하게 문의해 주세요.
+const expandReaction = (reaction: string): string => {
+  const expansions: Record<string, string[]> = {
+    '적극적으로 참여': [
+      '평소보다 더 활기차게 참여하시는 모습이 보기 좋았어요',
+      '누구보다 먼저 나서시며 의욕을 보여주셨답니다',
+    ],
+    '즐거워하심': [
+      '연신 "재밌다, 재밌어" 하시며 환하게 웃으셨어요',
+      '오랜만에 이렇게 신나셨는지, 아이처럼 좋아하셨답니다',
+    ],
+    '집중하심': [
+      '눈을 반짝이시며 온 마음을 쏟으시는 모습이 인상적이었어요',
+      '조용히 집중하시는 그 진지한 눈빛이 참 아름다웠어요',
+    ],
+    '친구분들과 대화': [
+      '옆자리 어르신과 도란도란 이야기꽃을 피우셨어요',
+      '서로 칭찬도 해주시고, 웃음소리가 끊이지 않았답니다',
+    ],
+    '뿌듯해하심': [
+      '완성된 작품을 보시며 "내가 이걸 다 했어?" 하고 뿌듯해하셨어요',
+      '다 마치시고 나서 어깨가 으쓱해지신 게 느껴졌답니다',
+    ],
+    '처음엔 어려워하심': [
+      '처음엔 "어휴, 이걸 어떻게 해" 하시더니, 금세 요령을 터득하셨어요',
+      '낯설어하시다가도 금방 손이 익으시더라고요',
+    ],
+  };
 
-연락 후 부담 없이 방문하셔서 살펴보세요.`;
+  return expansions[reaction]?.[Math.floor(Math.random() * 2)] || 
+    `${reaction} 모습이 참 보기 좋았어요`;
+};
+
+const getEffectNarrative = (effects: string[], categoryId: string): string => {
+  // 교과서적 설명 대신 구어체로 풀어서
+  const narratives: Record<string, string[]> = {
+    cognitive: [
+      '이렇게 손끝을 움직이고 생각을 하시다 보면, 자연스럽게 머리도 맑아지시는 것 같아요.',
+      '집중하시는 동안 뇌도 함께 운동이 되셨을 거예요. 오늘도 건강한 하루 보내셨네요.',
+    ],
+    physical: [
+      '온몸을 움직이시니 혈액순환도 되시고, 뻐근했던 어깨도 좀 풀리셨을 거예요.',
+      '오랜만에 크게 웃으시고 움직이시니, 폐활량에도 좋으셨을 것 같아요.',
+    ],
+    birthday: [
+      '이런 특별한 날의 기억이 마음속에 오래오래 남으셨으면 좋겠어요.',
+      '오늘 하루가 어르신께 행복한 추억으로 남았으면 해요.',
+    ],
+    meal: [
+      '맛있게 드시는 모습을 보니, 저희도 덩달아 배가 부른 것 같았어요.',
+      '오늘 식사 잘 하셨으니, 기운도 나시고 오후도 활기차게 보내실 거예요.',
+    ],
+    special: [
+      '평소와 다른 특별한 시간이, 어르신들께 작은 설렘이 되었길 바라요.',
+      '이런 소소한 행사가 일상에 작은 기쁨을 더해드렸으면 해요.',
+    ],
+  };
+
+  return getRandomItem(narratives[categoryId] || narratives['special']);
+};
+
+const getClosingReflection = (centerName: string): string => {
+  const reflections = [
+    `오늘도 어르신들 곁에서 함께 웃고, 함께 이야기 나눌 수 있어 감사한 하루였어요.\n\n${centerName}에서는 어르신 한 분 한 분의 하루가 조금이라도 더 따뜻하고 행복할 수 있도록, 늘 곁에서 세심히 살피고 있답니다.\n\n우리 부모님의 하루가 궁금하시다면, 언제든 편하게 놀러 오세요. 차 한 잔 대접해 드릴게요. ☕`,
+    `어르신들 얼굴에 번지는 미소를 보면, 저희가 더 많이 받는 것 같아요.\n\n${centerName}은 어르신들이 편안하게 웃으실 수 있는 곳이 되고자 늘 노력하고 있어요.\n\n궁금하신 점이 있으시면 부담 없이 연락 주세요. 직접 오셔서 둘러보시는 것도 환영이랍니다. 🌿`,
+    `하루하루 건강하게, 행복하게 지내시는 모습을 보는 게 저희의 가장 큰 보람이에요.\n\n${centerName}에서 어르신들과 함께 만들어가는 일상, 앞으로도 정성껏 기록해 나갈게요.\n\n방문 상담은 언제든 환영이에요. 편하게 연락 주세요. 🌸`,
+  ];
+
+  return getRandomItem(reflections);
 };
 
 export const generateBlogContent = async (input: BlogInput): Promise<GeneratedBlog> => {
-  // 실제로는 AI API를 호출하지만, 현재는 템플릿 기반 생성
   const categoryInfo = CATEGORIES.find(c => c.id === input.category)!;
-  const centerName = input.centerName || '늘푸른주야간보호센터';
+  const centerName = input.centerName || '의정부 늘봄종합복지센터';
   
-  const reactions = input.reactions.length > 0 
-    ? input.reactions.join(', ') 
-    : '적극적으로 참여하시며';
-  
-  const effects = input.effects.length > 0 
-    ? input.effects 
-    : categoryInfo.effects.slice(0, 2);
+  // 계절 인사
+  const seasonalIntros = getSeasonalIntro();
+  const intro = getRandomItem<string>(seasonalIntros);
 
-  // 제목 생성
-  const title = `${centerName}의 ${input.activityName} - ${categoryInfo.label}`;
+  // 어르신 반응 확장
+  const reactionNarratives = input.reactions
+    .map(r => expandReaction(r))
+    .join(' ');
 
-  // 본문 생성 (참고 블로그 스타일 반영)
-  const content = `안녕하세요.
-${centerName}입니다.
+  // 사용자 입력 상세 내용 확장
+  let customDetailsExpanded = '';
+  if (input.customDetails && input.customDetails.trim()) {
+    // 입력된 내용을 에피소드로 변환
+    customDetailsExpanded = `\n\n${input.customDetails.split('.').filter(s => s.trim()).map(sentence => {
+      const trimmed = sentence.trim();
+      if (!trimmed) return '';
+      // 간단한 사실을 에피소드로 변환
+      if (trimmed.includes('좋아')) {
+        return `${trimmed}이라는 걸 알게 되어, 보는 저희도 절로 미소가 지어졌어요.`;
+      } else if (trimmed.includes('하심') || trimmed.includes('하셨')) {
+        return `${trimmed}. 그 순간의 표정이 아직도 눈에 선해요.`;
+      } else if (trimmed.includes('촬영') || trimmed.includes('사진')) {
+        return `${trimmed}. 카메라 앞에서 살짝 쑥스러워하시다가도, 이내 환한 미소를 보여주셨답니다.`;
+      }
+      return `${trimmed}. 그 모습이 참 보기 좋았어요.`;
+    }).join(' ')}`;
+  }
 
-${getWeatherIntro()}
+  // 효과 서술 (구어체로)
+  const effectNarrative = getEffectNarrative(input.effects, input.category);
 
----
+  // 제목 생성 (기계적이지 않게)
+  const titleOptions = [
+    `${input.activityName}, 오늘도 웃음꽃이 활짝`,
+    `어르신들과 함께한 ${input.activityName} 이야기`,
+    `오늘 하루, ${input.activityName}으로 행복했어요`,
+    `${input.activityName} - 작은 일상의 큰 기쁨`,
+  ];
+  const title = getRandomItem(titleOptions);
 
-📌 오늘의 활동: ${input.activityName}
+  // 본문 생성 (수필 스타일)
+  const content = `${intro}
 
-오늘은 어르신들과 함께
-${input.activityName} 활동을 진행했습니다.
+오늘 ${centerName}에서는 어르신들과 함께 ${input.activityName}을 했어요.
 
-어르신들께서는 ${reactions}
-활동에 임해주셨어요.
+${reactionNarratives}${customDetailsExpanded}
 
-${input.customDetails ? `\n특별히 오늘은 ${input.customDetails}\n` : ''}
-
----
-
-✨ 활동의 효과
-
-이러한 ${categoryInfo.label}은
-${effects.join(', ')} 등에
-큰 도움이 됩니다.
-
-${categoryInfo.id === 'cognitive' ? `
-특히 어르신들의 두뇌를 자극하여
-치매 예방에 효과적이며,
-손끝을 사용하는 활동은
-소근육 발달과 협응력 향상에도
-도움이 됩니다.
-` : ''}
-
-${categoryInfo.id === 'physical' ? `
-꾸준한 신체활동은
-근력 강화와 균형감각 유지에 필수적이며,
-어르신들의 일상생활 자립도를
-높이는 데 큰 역할을 합니다.
-` : ''}
-
-${categoryInfo.id === 'birthday' ? `
-생신잔치는 하루의 행사였지만,
-그날의 웃음과 박수는 어르신의
-마음에 오래 남는 기억이 돼요.
-
-이런 순간들이 쌓여 하루하루가
-조금 더 편안해진다고 생각합니다.
-` : ''}
+${effectNarrative}
 
 ---
 
-${getClosing(centerName)}`;
+${getClosingReflection(centerName)}`;
 
-  // 해시태그 생성
+  // 해시태그 생성 (간결하게)
   const hashtags = [
     `#${centerName.replace(/\s/g, '')}`,
     '#주야간보호센터',
-    '#노인복지',
-    `#${categoryInfo.label}`,
-    '#어르신돌봄',
-    ...effects.slice(0, 2).map(e => `#${e.replace(/\s/g, '')}`),
+    `#${input.activityName.replace(/\s/g, '')}`,
+    '#어르신일상',
+    '#따뜻한돌봄',
     '#실버케어',
-    '#사회복지',
   ];
 
-  // 약간의 지연을 추가하여 실제 API 호출처럼 느끼게
+  // 약간의 지연을 추가하여 생성 중인 느낌
   await new Promise(resolve => setTimeout(resolve, 1500));
 
   return {
