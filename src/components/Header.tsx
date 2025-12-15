@@ -7,7 +7,7 @@ const Header = () => {
             <Heart className="w-6 h-6 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">의정부 늘봄종합복지센터 글쓰기 파트너<span className="text-gradient-warm">글쓰기 파트너</span>
+            <h1 className="text-xl font-bold text-foreground">의정부 늘봄종합복지센터 <span className="text-gradient-warm">글쓰기 파트너</span>
             </h1>
             <p className="text-xs text-muted-foreground">어르신들의 하루를 따뜻하게 전하세요</p>
           </div>
