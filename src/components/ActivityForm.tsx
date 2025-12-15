@@ -1,19 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CATEGORIES, REACTION_KEYWORDS, type ActivityCategory, type BlogInput } from '@/types/blog';
+import { CATEGORIES, type ActivityCategory, type BlogInput } from '@/types/blog';
+import { getRandomReactions } from '@/data/reactionData';
 import { cn } from '@/lib/utils';
-import { Sparkles, ChevronRight, X } from 'lucide-react';
+import { Sparkles, ChevronRight, X, RefreshCw } from 'lucide-react';
 
 interface ActivityFormProps {
   category: ActivityCategory;
   onSubmit: (input: BlogInput) => void;
   isLoading: boolean;
 }
+
+const HARDCODED_CENTER_NAME = '의정부 늘봄종합복지센터';
 
 const ActivityForm = ({ category, onSubmit, isLoading }: ActivityFormProps) => {
   const categoryInfo = CATEGORIES.find(c => c.id === category)!;
@@ -22,7 +25,26 @@ const ActivityForm = ({ category, onSubmit, isLoading }: ActivityFormProps) => {
   const [selectedReactions, setSelectedReactions] = useState<string[]>([]);
   const [selectedEffects, setSelectedEffects] = useState<string[]>([]);
   const [customDetails, setCustomDetails] = useState('');
-  const [centerName, setCenterName] = useState('');
+  const [displayedReactions, setDisplayedReactions] = useState<string[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // 카테고리 변경 시 랜덤 반응 갱신
+  const refreshReactions = useCallback(() => {
+    setIsRefreshing(true);
+    const newReactions = getRandomReactions(category, 7);
+    
+    // 애니메이션 효과를 위한 딜레이
+    setTimeout(() => {
+      setDisplayedReactions(newReactions);
+      // 선택된 반응 중 새 목록에 없는 것은 유지 (이미 선택한 것은 사라지지 않음)
+      setIsRefreshing(false);
+    }, 200);
+  }, [category]);
+
+  useEffect(() => {
+    refreshReactions();
+    setSelectedReactions([]);
+  }, [category, refreshReactions]);
 
   const toggleReaction = (reaction: string) => {
     setSelectedReactions(prev => 
@@ -49,9 +71,12 @@ const ActivityForm = ({ category, onSubmit, isLoading }: ActivityFormProps) => {
       reactions: selectedReactions,
       effects: selectedEffects.length > 0 ? selectedEffects : categoryInfo.effects.slice(0, 2),
       customDetails: customDetails.trim(),
-      centerName: centerName.trim() || '늘푸른주야간보호센터',
+      centerName: HARDCODED_CENTER_NAME,
     });
   };
+
+  // 선택된 반응 + 현재 표시된 반응 (중복 제거)
+  const allDisplayedReactions = [...new Set([...selectedReactions, ...displayedReactions])];
 
   return (
     <Card className="shadow-card border-border/50 animate-fade-in">
@@ -67,20 +92,6 @@ const ActivityForm = ({ category, onSubmit, isLoading }: ActivityFormProps) => {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* 센터명 */}
-        <div className="space-y-2">
-          <Label htmlFor="centerName" className="text-sm font-medium">
-            센터 이름
-          </Label>
-          <Input
-            id="centerName"
-            placeholder="예: 늘푸른주야간보호센터"
-            value={centerName}
-            onChange={(e) => setCenterName(e.target.value)}
-            className="h-11"
-          />
-        </div>
-
         {/* 활동명 */}
         <div className="space-y-2">
           <Label htmlFor="activityName" className="text-sm font-medium">
@@ -109,14 +120,29 @@ const ActivityForm = ({ category, onSubmit, isLoading }: ActivityFormProps) => {
 
         {/* 어르신 반응 */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium">어르신 반응 (복수 선택 가능)</Label>
-          <div className="flex flex-wrap gap-2">
-            {REACTION_KEYWORDS.map((reaction) => (
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">어르신 반응 (복수 선택 가능)</Label>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={refreshReactions}
+              disabled={isRefreshing}
+              className="h-8 px-2 text-muted-foreground hover:text-foreground"
+            >
+              <RefreshCw className={cn("w-4 h-4 mr-1", isRefreshing && "animate-spin")} />
+              <span className="text-xs">다른 표현</span>
+            </Button>
+          </div>
+          <div className={cn(
+            "flex flex-wrap gap-2 transition-opacity duration-200",
+            isRefreshing && "opacity-50"
+          )}>
+            {allDisplayedReactions.map((reaction) => (
               <Badge
                 key={reaction}
                 variant={selectedReactions.includes(reaction) ? 'default' : 'outline'}
                 className={cn(
-                  'cursor-pointer transition-all duration-200',
+                  'cursor-pointer transition-all duration-200 text-wrap text-left leading-relaxed py-1.5',
                   selectedReactions.includes(reaction) 
                     ? 'bg-primary text-primary-foreground' 
                     : 'hover:bg-accent'
@@ -125,7 +151,7 @@ const ActivityForm = ({ category, onSubmit, isLoading }: ActivityFormProps) => {
               >
                 {reaction}
                 {selectedReactions.includes(reaction) && (
-                  <X className="w-3 h-3 ml-1" />
+                  <X className="w-3 h-3 ml-1 flex-shrink-0" />
                 )}
               </Badge>
             ))}
