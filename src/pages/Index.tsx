@@ -70,7 +70,7 @@ const Index = () => {
 
       {/* 푸터 */}
       <footer className="py-8 text-center text-sm text-muted-foreground border-t border-border/50">
-        <p>© 2025 늘봄종합복지센터 글쓰기 파트너</p>
+        <p>© 2025 studioori </p>
         <p className="mt-1">어르신의 하루를 따뜻하게 전합니다 💚</p>
       </footer>
     </div>;
