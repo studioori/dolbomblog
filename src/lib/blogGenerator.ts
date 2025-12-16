@@ -121,103 +121,165 @@ const generatePreparationPhase = (activityName: string, categoryId: string): str
 // ============================================================
 // 3. 전개 2 - 하이라이트 에피소드 (40% - 핵심, Slow Motion 기법 적용)
 // 4단계 구조: 위기(거절/수줍음) → 시도(용기) → 절정(활동) → 반응(박수/환호)
+// 🚫 문맥 용해 법칙: 사용자 입력을 절대 그대로 복사하지 않고, 팩트만 추출하여 새로 창작
 // ============================================================
+
+// 사용자 입력에서 팩트(사실) 추출
+interface ExtractedFacts {
+  elderName: string | null;      // 어르신 이름 (예: 양OO)
+  quantity: string | null;       // 수량 (예: 세 곡, 다섯 번)
+  nickname: string | null;       // 별명 (예: 명가수, 춤꾼)
+  action: string | null;         // 핵심 행동 (예: 노래를 부르다, 춤을 추다)
+  emotion: string | null;        // 감정/반응 (예: 즐거워하다, 감격하다)
+  context: string | null;        // 배경/맥락 (예: 젊었을 적, 친척 모임)
+}
+
+const extractFactsFromInput = (input: string): ExtractedFacts => {
+  // 이름 추출: 양OO, 김oo, 박○○ 등
+  const nameMatch = input.match(/([가-힣]{1,2})[Ooㅇ○0]{1,2}\s*어르신?/);
+  const elderName = nameMatch ? nameMatch[1] + 'OO' : null;
+
+  // 수량 추출: 세 곡, 다섯 번, 여러 곡 등
+  const quantityMatch = input.match(/(한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|여러)\s*(곡|번|차례|개|가지)/);
+  const quantity = quantityMatch ? quantityMatch[0] : null;
+
+  // 별명/칭호 추출: 명가수, 춤꾼, 챔피언 등
+  const nicknameMatch = input.match(/(명가수|춤꾼|챔피언|일등|최고|스타|인기인|분위기메이커)/);
+  const nickname = nicknameMatch ? nicknameMatch[1] : null;
+
+  // 핵심 행동 추출
+  const actionPatterns = [
+    { pattern: /노래.*부르|불러|부르시/, action: '노래를 부르시다' },
+    { pattern: /춤.*추|추시/, action: '춤을 추시다' },
+    { pattern: /그림.*그리|그리시/, action: '그림을 그리시다' },
+    { pattern: /만들|만드시/, action: '작품을 만드시다' },
+    { pattern: /운동|체조/, action: '몸을 움직이시다' },
+    { pattern: /먹|드시/, action: '맛있게 드시다' },
+    { pattern: /웃|웃으시/, action: '환하게 웃으시다' },
+  ];
+  let action: string | null = null;
+  for (const ap of actionPatterns) {
+    if (ap.pattern.test(input)) {
+      action = ap.action;
+      break;
+    }
+  }
+
+  // 감정/반응 추출
+  const emotionMatch = input.match(/(감격|즐거|행복|기뻐|신나|좋아|뿌듯|감동)/);
+  const emotion = emotionMatch ? emotionMatch[1] : null;
+
+  // 배경/맥락 추출
+  const contextMatch = input.match(/(젊었을\s*(?:때|적|시절)|옛날에?|친척.*모임|가족.*모임|예전에?)/);
+  const context = contextMatch ? contextMatch[0] : null;
+
+  return { elderName, quantity, nickname, action, emotion, context };
+};
+
+// 추출된 팩트를 기반으로 에피소드 창작 (문맥 용해)
+const meltFactsIntoNarrative = (
+  facts: ExtractedFacts, 
+  activityName: string
+): string => {
+  let episode = '\n\n---\n\n';
+  episode += '오늘 가장 기억에 남는 순간을 이야기해 드릴게요.\n\n';
+
+  const elderDisplay = facts.elderName ? `**${facts.elderName} 어르신**` : '한 어르신';
+  const elderShort = facts.elderName || '어르신';
+
+  // 1단계: 위기/수줍음 - 평소 모습 묘사
+  episode += `${elderDisplay} 이야기를 안 할 수가 없어요.\n\n`;
+  
+  if (facts.nickname) {
+    episode += `오늘 이 분은 우리 센터의 '${facts.nickname}'라 불리게 되었답니다. 하지만 처음부터 그러셨던 건 아니에요. 평소에는 조용하시고 차분하신 분이거든요. 늘 구석 자리에서 다른 분들 하시는 걸 지켜보시곤 했지요.\n\n`;
+  } else {
+    episode += `평소 조용하시고 차분하신 분이세요. 말씀도 많이 안 하시고, 늘 구석 자리에서 다른 분들 하시는 걸 바라보시곤 했지요. 그래서 오늘 일은 정말 깜짝 놀랐답니다.\n\n`;
+  }
+
+  // 2단계: 시도/용기 - 참여하시게 된 계기
+  episode += `그런데 오늘은 달랐어요. ${activityName} 시간에 뭔가 다른 분위기가 느껴지셨는지, 슬금슬금 앞으로 나오시더라고요.\n\n`;
+  
+  if (facts.context) {
+    episode += `"${facts.context}에 좀 했었어" 하시면서 조심스레 손을 뻗으셨어요. 오래전 추억이 떠오르셨나 봐요. 그 떨리는 손끝에서 설렘이 느껴졌답니다.\n\n`;
+  } else {
+    episode += `"오늘은 해볼래" 하시는 그 조심스러운 목소리. 저희 모두 깜짝 놀라면서도 "그럼요! 같이 해요!" 하고 환영했지요.\n\n`;
+  }
+  episode += `처음엔 "못해, 나 이런 거 안 해본 지 오래됐어" 하시면서도, 막상 시작되니 눈빛이 달라지셨어요.\n\n`;
+
+  // 3단계: 절정 - 실제 활동 (수량 정보 활용)
+  episode += `그리고 시작된 순간, 모두가 숨을 죽였어요.\n\n`;
+  
+  if (facts.action?.includes('노래')) {
+    if (facts.quantity) {
+      episode += `한 곡으로는 부족하셨는지, 내리 **${facts.quantity}을 연달아 열창**하셨답니다. 처음엔 떨리는 목소리가 점점 우렁차지시더니, 마지막 곡에선 센터 유리창이 울릴 것 같았어요.\n\n`;
+    } else {
+      episode += `첫 소절부터 목소리가 쩌렁쩌렁하시더라고요. "원래 이렇게 잘하셨어요?" 물었더니 쑥스럽게 웃기만 하셨지요.\n\n`;
+    }
+    episode += `주름진 얼굴에 환한 미소가 번지시는 걸 보니, 마치 무대 위 가수 같으셨어요. 어깨가 들썩이시고, 손짓까지 곁들이시며 완전히 빠져드셨답니다.\n\n`;
+  } else if (facts.action?.includes('춤')) {
+    episode += `음악이 나오자 몸이 저절로 움직이셨나 봐요. 처음엔 어깨만 살짝 들썩이시더니, 어느새 스텝까지 밟고 계셨어요.\n\n`;
+    episode += `"어머, ${elderShort} 춤 진짜 잘 추신다!" 감탄이 절로 나왔답니다. 리듬을 타시는 그 모습이 꼭 젊은 시절로 돌아가신 것 같았어요.\n\n`;
+  } else {
+    episode += `막상 참여하시니까 누구보다 열심히 하셨어요. 집중하시는 눈빛이 반짝반짝, 진지한 표정으로 임하시더니 어느새 활짝 웃고 계셨답니다.\n\n`;
+    if (facts.quantity) {
+      episode += `한 번으로 만족 못 하셨는지, **${facts.quantity}이나** 거뜬히 해내셨어요. 숨겨왔던 실력을 오늘 다 보여주시려는 듯했지요.\n\n`;
+    } else {
+      episode += `누가 보셔도 타고나신 분이라는 게 느껴졌어요. 처음 하신다더니, 왜 숨기고 계셨던 거예요?\n\n`;
+    }
+  }
+
+  // 닉네임이 있으면 자연스럽게 녹여내기
+  if (facts.nickname && !episode.includes(facts.nickname)) {
+    episode += `그래서 오늘부터 저희끼리 ${elderShort}을 '${facts.nickname}'라고 부르기로 했답니다. 본인은 "에이, 무슨~" 하시면서도 은근히 좋아하시는 것 같았어요.\n\n`;
+  }
+
+  return episode;
+};
+
 const generateHighlightEpisode = (
   customDetails: string, 
   reactions: string[], 
   activityName: string
 ): string => {
   if (!customDetails || !customDetails.trim()) {
-    // 기본 에피소드 생성
     return generateDefaultEpisode(reactions, activityName);
   }
 
-  let episode = '\n\n---\n\n';
-  episode += '오늘 가장 기억에 남는 순간을 이야기해 드릴게요.\n\n';
-
-  // 이름 추출 시도
-  const nameMatch = customDetails.match(/([가-힣]{1,2})[OO○○0o]{0,2}\s*어르신/);
-  const elderName = nameMatch ? nameMatch[1] + 'OO' : null;
-
-  // 키워드 분석
-  const hasSong = /노래|춤|공연|무대|마이크/.test(customDetails);
-  const hasPhoto = /촬영|사진|포즈|카메라/.test(customDetails);
-  const hasFood = /케이크|음식|맛있|먹|식사/.test(customDetails);
-  const hasCelebration = /생일|축하|파티|잔치|선물/.test(customDetails);
-  const hasGame = /게임|퀴즈|문제|정답/.test(customDetails);
-
-  // Slow Motion 서술 - 4단계 구조로 확장
-
-  // 1단계: 위기/수줍음
-  if (elderName) {
-    episode += `**${elderName} 어르신** 이야기를 안 할 수가 없어요.\n\n`;
-    episode += `평소 조용하시고 차분하신 분이세요. 말씀도 많이 안 하시고, 늘 구석 자리에서 다른 분들 하시는 걸 바라보시곤 했지요. 그래서 오늘 일은 정말 깜짝 놀랐답니다.\n\n`;
-  } else {
-    episode += `한 어르신 이야기를 해드릴게요.\n\n`;
-    episode += `평소 적극적인 편은 아니신 분이에요. 다른 분들이 활동하실 때 옆에서 구경하시거나, "난 됐어"라며 손사래를 치시곤 했지요.\n\n`;
-  }
-
-  // 2단계: 시도/용기
-  if (hasSong) {
-    episode += `그런데 오늘, ${activityName} 시간에 마이크를 내밀었더니 갑자기 손을 뻗으시는 거예요.\n\n`;
-    episode += `"에이, ${elderName || '어르신'}, 평소에 안 하시잖아요" 하니까, "오늘은 해볼래" 하시더라고요. 떨리는 손끝으로 마이크를 쥐시던 그 모습, 지금도 눈에 선해요.\n\n`;
-    episode += `"난 못해, 목소리도 안 나와" 하시면서도, 막상 음악이 나오자 입술이 달싹거리셨어요. 그 찰나의 망설임 뒤에, 첫 소절을 떼셨답니다.\n\n`;
-  } else if (hasPhoto) {
-    episode += `기념 촬영 시간에 "사진 찍어요~" 했더니, 처음엔 손사래를 치셨어요.\n\n`;
-    episode += `"아이고, 내 얼굴이 뭐라고" 하시면서요. 그런데 다른 분들이 하나둘 포즈를 취하시니까, 슬금슬금 다가오시더라고요.\n\n`;
-    episode += `"나도 같이 찍을까?" 하시는 그 조심스러운 목소리. "당연하죠! 여기 서세요!" 하니까, 쭈뼛쭈뼛 자리를 잡으셨어요.\n\n`;
-  } else if (hasFood || hasCelebration) {
-    episode += `${activityName} 시간, 처음엔 "나 이런 거 별로야" 하시며 시큰둥하셨어요.\n\n`;
-    episode += `그런데 분위기가 점점 달아오르니까, 슬쩍슬쩍 눈길을 주시더라고요. "뭐야, 재밌어 보이는데?" 하시면서요.\n\n`;
-    episode += `결국 "나도 해볼까" 하시며 다가오셨을 때, 저희 모두가 환영의 박수를 쳤답니다.\n\n`;
-  } else if (hasGame) {
-    episode += `${activityName}을 시작하자, 처음엔 "이거 어려운 거 아니야?" 하시며 걱정하셨어요.\n\n`;
-    episode += `"쉬워요, 한번 해보세요" 하니까 반신반의하시며 문제를 들여다보셨지요.\n\n`;
-    episode += `연필을 쥐시던 손이 살짝 떨리시더니, 천천히 답을 적어나가기 시작하셨어요.\n\n`;
-  } else {
-    episode += `${activityName} 시간이었어요. "${customDetails}"라는 상황이 펼쳐졌지요.\n\n`;
-    episode += `처음엔 망설이시더니, 조심스레 참여하시기 시작했어요. 그 용기 내신 모습이 참 보기 좋았답니다.\n\n`;
-  }
-
-  // 3단계: 절정
-  if (hasSong) {
-    episode += `첫 소절이 시작되는 순간, 모두가 숨을 죽였어요.\n\n`;
-    episode += `떨릴 줄 알았는데, 목소리가 쩌렁쩌렁하시더라고요. 젊은 시절 친척들 모임에서 분위기 메이커셨다던 말씀이 빈말이 아니셨던 거예요. 두 번째 소절로 넘어가시면서 점점 자신감이 붙으셨는지, 어깨까지 들썩이셨답니다.\n\n`;
-    episode += `어르신의 목소리가 센터 거실을 가득 채웠어요. 창밖까지 들릴 것 같은 그 힘찬 노래. 주름진 얼굴에 환한 미소가 번지시는 걸 보니, 저도 모르게 코끝이 찡해졌어요.\n\n`;
-  } else if (hasPhoto) {
-    episode += `카메라 앞에 서시더니, 갑자기 브이 포즈를 취하시는 거예요!\n\n`;
-    episode += `"어머, ${elderName || '어르신'} 포즈 아시네요?" 하니까 "젊은 사람들 따라 배웠지" 하시며 웃으셨어요. 그 다음엔 쭈글쭈글하지만 세상에서 가장 따뜻한 손으로 하트를 만들어 보여주셨답니다.\n\n`;
-    episode += `셔터 소리가 찰칵찰칵 울릴 때마다, 어르신 미소가 점점 활짝 피어나셨어요. 처음의 어색함은 온데간데없고, 모델 뺨치는 포즈를 연발하셨지요.\n\n`;
-  } else if (hasCelebration) {
-    episode += `촛불 앞에서 두 손 모아 소원을 비시는 모습이 참 경건했어요.\n\n`;
-    episode += `"무슨 소원 빌었어요?" 하고 여쭤보니, "여기 있는 사람들 다 건강하게 해달라고 빌었지" 하시더라고요. 본인 소원은 안 비시고요. 그 말씀에 주변 분들 눈시울이 붉어졌답니다.\n\n`;
-    episode += `촛불을 후~ 부시는데, 한 번에 다 꺼지셨어요! "폐활량 좋으시다!" 하니까 "내가 옛날에 나팔 불었어" 하시며 어깨가 으쓱하셨지요.\n\n`;
-  } else if (hasFood) {
-    episode += `첫 숟가락을 드시더니 눈이 휘둥그레지셨어요.\n\n`;
-    episode += `"이 맛이야, 이 맛!" 하시며 연신 감탄하셨지요. 옛날 어머니가 해주시던 그 맛이라며, 잠시 추억에 잠기시더라고요. 두 번째, 세 번째 숟가락이 이어지고, 어느새 그릇이 거의 비워졌어요.\n\n`;
-    episode += `"더 없어요?" 하시며 아쉬워하시는 모습에 저희가 더 뿌듯했답니다. 입맛 없으시다던 분이 이렇게 맛있게 드시다니요!\n\n`;
-  } else if (hasGame) {
-    episode += `어려워하시던 게 언제였냐는 듯, 척척 답을 맞추셨어요.\n\n`;
-    episode += `"이건 3번이지" "저건 너무 쉬워" 하시며 자신감이 붙으셨지요. 옆에 계신 분이 "어머, ${elderName || '어르신'} 똑똒하시네" 하시니까 "옛날에 내가 공부 좀 했어" 하시며 뿌듯해하셨어요.\n\n`;
-    episode += `마지막 문제까지 다 맞추시고 "다 풀었다!" 하시며 손을 번쩍 드셨을 때, 그 환한 미소가 잊히지 않아요.\n\n`;
-  } else {
-    episode += `${customDetails}\n\n`;
-    episode += `그 순간만큼은 세상 근심 걱정을 다 잊으신 듯했어요. 눈가에 맺힌 잔잔한 미소, 반짝이는 눈빛. 저희가 더 많이 받는 것 같았답니다.\n\n`;
-  }
+  // 문맥 용해: 사용자 입력에서 팩트 추출
+  const facts = extractFactsFromInput(customDetails);
+  
+  // 팩트 기반으로 에피소드 창작 (원본 텍스트 사용 안 함)
+  let episode = meltFactsIntoNarrative(facts, activityName);
+  
+  const elderShort = facts.elderName || '어르신';
 
   // 4단계: 반응/박수/환호
   episode += `그 순간, 센터 안에 우레와 같은 박수가 쏟아졌어요.\n\n`;
-  episode += `"와~ 대단하시다!" "앵콜이요!" 하는 소리가 여기저기서 터져 나왔지요. ${elderName || '어르신'}은 쑥스러우신 듯 손을 저으셨지만, 그 볼에 번진 홍조는 숨길 수가 없으셨어요.\n\n`;
+  episode += `"와~ 대단하시다!" "앵콜이요!" 하는 소리가 여기저기서 터져 나왔지요. ${elderShort}은 쑥스러우신 듯 손을 저으셨지만, 그 볼에 번진 홍조는 숨길 수가 없으셨어요.\n\n`;
   episode += `"내가 이런 것도 하네, 늙어서..." 하시면서도 입꼬리가 귀까지 올라가셨답니다. 옆에 계신 분이 "언제 또 해줘" 하시니까 "다음에 또 해볼까" 하시며 웃으셨어요.\n\n`;
 
-  // 선택된 반응 키워드들 자연스럽게 통합
+  // 선택된 반응 키워드들 자연스럽게 통합 (문맥 용해)
   if (reactions.length > 0) {
-    episode += `오늘 어르신들 반응이 정말 좋았어요. `;
-    const reactionDescriptions = reactions.slice(0, 3).map(r => {
-      const cleaned = r.replace(/시며$|하시며$/, '시는');
-      return cleaned;
+    episode += `오늘 어르신들 반응이 정말 좋았어요.\n\n`;
+    
+    // 반응을 그대로 나열하지 않고, 문장으로 녹여내기
+    const melted = reactions.slice(0, 2).map(r => {
+      // "~하시며" 형태를 문장으로 변환
+      if (r.includes('눈시울') || r.includes('눈물')) {
+        return `감격에 겨우셨는지 눈시울을 붉히시는 분도 계셨고요`;
+      } else if (r.includes('박수') || r.includes('환호')) {
+        return `어떤 분은 손이 아프도록 박수를 치셨어요`;
+      } else if (r.includes('웃') || r.includes('미소')) {
+        return `연신 웃음꽃을 피우시는 분들도 계셨지요`;
+      } else if (r.includes('따라') || r.includes('함께')) {
+        return `덩달아 함께 참여하시려는 분들이 줄을 서셨어요`;
+      } else {
+        const cleaned = r.replace(/시며$|하시며$/, '셨어요');
+        return `어떤 분은 ${cleaned}`;
+      }
     });
-    episode += `${reactionDescriptions.join(' 분, ')} 분들이 계셨답니다. `;
+    
+    episode += `${melted.join('. ')}. `;
     episode += `그 모습 하나하나가 제 마음에 오래오래 남을 것 같아요.\n`;
   }
 
@@ -235,12 +297,17 @@ const generateDefaultEpisode = (reactions: string[], activityName: string): stri
   episode += `막상 참여하시니까 누구보다 열심히 하셨어요. 집중하시는 눈빛이 반짝반짝, 진지한 표정으로 임하시더니 어느새 활짝 웃고 계셨답니다.\n\n`;
 
   if (reactions.length > 0) {
-    const cleanedReactions = reactions.slice(0, 2).map(r => r.replace(/시며$|하시며$/, '셨어요'));
-    episode += `특히 ${cleanedReactions[0]}. `;
-    if (cleanedReactions.length > 1) {
-      episode += `또 다른 분은 ${cleanedReactions[1]}. `;
-    }
-    episode += `그 모습들을 보면서 저도 덩달아 행복해졌답니다.\n`;
+    const melted = reactions.slice(0, 2).map(r => {
+      if (r.includes('눈시울') || r.includes('눈물')) {
+        return `감격에 겨우셨는지 눈시울을 붉히시는 분도 계셨고요`;
+      } else if (r.includes('웃') || r.includes('미소')) {
+        return `연신 웃음꽃을 피우시는 분들도 계셨지요`;
+      } else {
+        const cleaned = r.replace(/시며$|하시며$/, '셨어요');
+        return `어떤 분은 ${cleaned}`;
+      }
+    });
+    episode += `${melted.join('. ')}. 그 모습들을 보면서 저도 덩달아 행복해졌답니다.\n`;
   }
 
   return episode;
