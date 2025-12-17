@@ -16,7 +16,7 @@ interface ActivityFormProps {
   isLoading: boolean;
 }
 
-const HARDCODED_CENTER_NAME = '의정부 늘봄종합복지센터';
+const HARDCODED_CENTER_NAME = '의정부 늘봄주야간보호센터';
 
 const ActivityForm = ({ category, onSubmit, isLoading }: ActivityFormProps) => {
   const categoryInfo = CATEGORIES.find(c => c.id === category)!;
