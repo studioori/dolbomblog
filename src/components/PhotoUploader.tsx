@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Camera, X, GripVertical, Loader2, Shield } from 'lucide-react';
 import { processImagesWithFaceBlur } from '@/lib/faceBlur';
 import { toast } from 'sonner';
+import ClickToBlurPreview from './ClickToBlurPreview';
 
 export interface PhotoItem {
   id: string;
@@ -92,6 +93,19 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
     );
   };
 
+  const handleManualBlurUpdate = (id: string, newFile: File, newPreviewUrl: string) => {
+    // Revoke old preview URL
+    const oldPhoto = photos.find(p => p.id === id);
+    if (oldPhoto) {
+      URL.revokeObjectURL(oldPhoto.preview);
+    }
+    
+    onPhotosChange(
+      photos.map(p => p.id === id ? { ...p, file: newFile, preview: newPreviewUrl } : p)
+    );
+    toast.success('추가 블러가 적용되었습니다.');
+  };
+
   return (
     <div className="space-y-4">
       {/* Processing Overlay */}
@@ -161,18 +175,16 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
                     </span>
                   </div>
 
-                  {/* Thumbnail */}
+                  {/* Interactive Thumbnail with Click-to-Blur */}
                   <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
-                    <img
-                      src={photo.preview}
-                      alt={`사진 ${index + 1}`}
-                      className="w-full h-full object-cover"
+                    <ClickToBlurPreview
+                      imageUrl={photo.preview}
+                      onImageUpdate={(newFile, newPreviewUrl) => 
+                        handleManualBlurUpdate(photo.id, newFile, newPreviewUrl)
+                      }
+                      disabled={isLoading}
+                      className="w-full h-full"
                     />
-                    {isLoading && (
-                      <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                      </div>
-                    )}
                   </div>
 
                   {/* Keyword Input */}
