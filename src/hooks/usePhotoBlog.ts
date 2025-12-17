@@ -18,6 +18,7 @@ interface UsePhotoBlogReturn {
   uploadAndGenerate: (photos: PhotoItem[]) => Promise<void>;
   deletePhotos: () => Promise<void>;
   reset: () => void;
+  updateImageUrl: (index: number, newUrl: string) => void;
 }
 
 export const usePhotoBlog = (): UsePhotoBlogReturn => {
@@ -138,6 +139,16 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
     setError(null);
   };
 
+  const updateImageUrl = (index: number, newUrl: string) => {
+    setUploadedUrls(prev => {
+      const updated = [...prev];
+      if (index >= 0 && index < updated.length) {
+        updated[index] = newUrl;
+      }
+      return updated;
+    });
+  };
+
   return {
     isUploading,
     isGenerating,
@@ -148,5 +159,6 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
     uploadAndGenerate,
     deletePhotos,
     reset,
+    updateImageUrl,
   };
 };

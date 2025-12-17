@@ -5,14 +5,17 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Copy, Check, RotateCcw, FileText, Hash, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import ResultImageBlur from './ResultImageBlur';
 
 interface PhotoBlogResultProps {
   title: string;
   content: string;
   hashtags: string[];
   imageUrls: string[];
+  imagePaths: string[];
   onReset: () => void;
   onDeletePhotos: () => Promise<void>;
+  onImageUrlUpdate: (index: number, newUrl: string) => void;
 }
 
 const PhotoBlogResult = ({ 
@@ -20,36 +23,58 @@ const PhotoBlogResult = ({
   content, 
   hashtags, 
   imageUrls,
+  imagePaths,
   onReset, 
-  onDeletePhotos 
+  onDeletePhotos,
+  onImageUrlUpdate
 }: PhotoBlogResultProps) => {
   const [copied, setCopied] = useState<'all' | 'html' | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
-  // Replace placeholders with actual images in the content
-  const renderContentWithImages = () => {
-    let renderedContent = content;
+  // Parse content and split by image placeholders
+  const renderContentWithInteractiveImages = () => {
+    const parts: Array<{ type: 'text' | 'image'; content: string; index?: number }> = [];
     
-    imageUrls.forEach((url, index) => {
-      const placeholder = `[IMAGE_PLACEHOLDER_${index + 1}]`;
-      renderedContent = renderedContent.replace(
-        placeholder,
-        `<div class="my-4"><img src="${url}" alt="활동 사진 ${index + 1}" class="w-full rounded-lg shadow-md" /></div>`
-      );
-    });
-    
-    // Also replace any remaining placeholders with images (in case AI used different numbering)
+    let remainingContent = content;
     const placeholderRegex = /\[IMAGE_PLACEHOLDER_(\d+)\]/g;
-    renderedContent = renderedContent.replace(placeholderRegex, (match, num) => {
-      const idx = parseInt(num) - 1;
-      if (idx >= 0 && idx < imageUrls.length) {
-        return `<div class="my-4"><img src="${imageUrls[idx]}" alt="활동 사진 ${num}" class="w-full rounded-lg shadow-md" /></div>`;
+    let lastIndex = 0;
+    let match;
+
+    // Reset regex
+    placeholderRegex.lastIndex = 0;
+
+    while ((match = placeholderRegex.exec(content)) !== null) {
+      // Add text before this placeholder
+      if (match.index > lastIndex) {
+        parts.push({
+          type: 'text',
+          content: content.slice(lastIndex, match.index)
+        });
       }
-      return match;
-    });
-    
-    return renderedContent;
+
+      // Add image placeholder
+      const imageIndex = parseInt(match[1]) - 1;
+      if (imageIndex >= 0 && imageIndex < imageUrls.length) {
+        parts.push({
+          type: 'image',
+          content: imageUrls[imageIndex],
+          index: imageIndex
+        });
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text
+    if (lastIndex < content.length) {
+      parts.push({
+        type: 'text',
+        content: content.slice(lastIndex)
+      });
+    }
+
+    return parts;
   };
 
   const getHtmlContent = () => {
@@ -58,9 +83,11 @@ const PhotoBlogResult = ({
     let processedContent = content;
     imageUrls.forEach((url, index) => {
       const placeholder = `[IMAGE_PLACEHOLDER_${index + 1}]`;
+      // Remove cache-busting query param for final URL
+      const cleanUrl = url.split('?')[0];
       processedContent = processedContent.replace(
         placeholder,
-        `\n<img src="${url}" alt="활동 사진 ${index + 1}" style="max-width:100%; border-radius:8px; margin: 16px 0;" />\n`
+        `\n<img src="${cleanUrl}" alt="활동 사진 ${index + 1}" style="max-width:100%; border-radius:8px; margin: 16px 0;" />\n`
       );
     });
     
@@ -69,7 +96,8 @@ const PhotoBlogResult = ({
     processedContent = processedContent.replace(placeholderRegex, (match, num) => {
       const idx = parseInt(num) - 1;
       if (idx >= 0 && idx < imageUrls.length) {
-        return `\n<img src="${imageUrls[idx]}" alt="활동 사진 ${num}" style="max-width:100%; border-radius:8px; margin: 16px 0;" />\n`;
+        const cleanUrl = imageUrls[idx].split('?')[0];
+        return `\n<img src="${cleanUrl}" alt="활동 사진 ${num}" style="max-width:100%; border-radius:8px; margin: 16px 0;" />\n`;
       }
       return '';
     });
@@ -132,7 +160,7 @@ const PhotoBlogResult = ({
     }
   };
 
-  const renderedHtml = renderContentWithImages();
+  const contentParts = renderContentWithInteractiveImages();
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -141,7 +169,7 @@ const PhotoBlogResult = ({
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
               <FileText className="w-5 h-5 text-primary" />
-              생성된 글 (사진 포함)
+              생성된 글 (사진 클릭하여 추가 블러 가능)
             </CardTitle>
           </div>
         </CardHeader>
@@ -156,14 +184,37 @@ const PhotoBlogResult = ({
 
           <Separator />
 
-          {/* 본문 (사진 포함) */}
+          {/* 본문 (인터랙티브 이미지 포함) */}
           <div className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">본문 미리보기</span>
-            <div className="p-4 rounded-lg bg-card border border-border max-h-[500px] overflow-y-auto">
-              <div 
-                className="prose prose-sm max-w-none text-foreground leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: renderedHtml.replace(/\n/g, '<br />') }}
-              />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              본문 미리보기 (이미지를 클릭하면 블러 처리됩니다)
+            </span>
+            <div className="p-4 rounded-lg bg-card border border-border max-h-[600px] overflow-y-auto">
+              <div className="prose prose-sm max-w-none text-foreground leading-relaxed">
+                {contentParts.map((part, idx) => {
+                  if (part.type === 'text') {
+                    return (
+                      <div 
+                        key={idx}
+                        dangerouslySetInnerHTML={{ 
+                          __html: part.content.replace(/\n/g, '<br />') 
+                        }}
+                      />
+                    );
+                  } else if (part.type === 'image' && part.index !== undefined) {
+                    return (
+                      <ResultImageBlur
+                        key={`img-${part.index}-${idx}`}
+                        imageUrl={part.content}
+                        storagePath={imagePaths[part.index]}
+                        alt={`활동 사진 ${part.index + 1}`}
+                        onImageUpdated={(newUrl) => onImageUrlUpdate(part.index!, newUrl)}
+                      />
+                    );
+                  }
+                  return null;
+                })}
+              </div>
             </div>
           </div>
 
