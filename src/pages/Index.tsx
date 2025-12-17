@@ -16,13 +16,11 @@ const Index = () => {
     isUploading,
     isGenerating,
     uploadedUrls,
-    uploadedPaths,
     generatedBlog,
     error,
     uploadAndGenerate,
     deletePhotos,
     reset,
-    updateImageUrl,
   } = usePhotoBlog();
 
   const isLoading = isUploading || isGenerating;
@@ -128,10 +126,8 @@ const Index = () => {
             content={generatedBlog.content}
             hashtags={generatedBlog.hashtags}
             imageUrls={uploadedUrls}
-            imagePaths={uploadedPaths}
             onReset={handleReset}
             onDeletePhotos={handleDeleteAndReset}
-            onImageUrlUpdate={updateImageUrl}
           />
         )}
       </main>

@@ -5,139 +5,132 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Copy, Check, RotateCcw, FileText, Hash, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import ResultImageBlur from './ResultImageBlur';
 
 interface PhotoBlogResultProps {
   title: string;
   content: string;
   hashtags: string[];
   imageUrls: string[];
-  imagePaths: string[];
   onReset: () => void;
   onDeletePhotos: () => Promise<void>;
-  onImageUrlUpdate: (index: number, newUrl: string) => void;
 }
+
+const MAX_WIDTH = 1200;
 
 const PhotoBlogResult = ({ 
   title, 
   content, 
   hashtags, 
   imageUrls,
-  imagePaths,
   onReset, 
-  onDeletePhotos,
-  onImageUrlUpdate
+  onDeletePhotos
 }: PhotoBlogResultProps) => {
-  const [copied, setCopied] = useState<'all' | 'html' | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
-  // Parse content and split by image placeholders
-  const renderContentWithInteractiveImages = () => {
-    const parts: Array<{ type: 'text' | 'image'; content: string; index?: number }> = [];
+  // Fetch image, resize, and convert to Base64
+  const imageToBase64 = async (url: string): Promise<string> => {
+    const response = await fetch(url);
+    const blob = await response.blob();
     
-    let remainingContent = content;
-    const placeholderRegex = /\[IMAGE_PLACEHOLDER_(\d+)\]/g;
-    let lastIndex = 0;
-    let match;
-
-    // Reset regex
-    placeholderRegex.lastIndex = 0;
-
-    while ((match = placeholderRegex.exec(content)) !== null) {
-      // Add text before this placeholder
-      if (match.index > lastIndex) {
-        parts.push({
-          type: 'text',
-          content: content.slice(lastIndex, match.index)
-        });
-      }
-
-      // Add image placeholder
-      const imageIndex = parseInt(match[1]) - 1;
-      if (imageIndex >= 0 && imageIndex < imageUrls.length) {
-        parts.push({
-          type: 'image',
-          content: imageUrls[imageIndex],
-          index: imageIndex
-        });
-      }
-
-      lastIndex = match.index + match[0].length;
-    }
-
-    // Add remaining text
-    if (lastIndex < content.length) {
-      parts.push({
-        type: 'text',
-        content: content.slice(lastIndex)
-      });
-    }
-
-    return parts;
-  };
-
-  const getHtmlContent = () => {
-    let html = `<h2>${title}</h2>\n\n`;
-    
-    let processedContent = content;
-    imageUrls.forEach((url, index) => {
-      const placeholder = `[IMAGE_PLACEHOLDER_${index + 1}]`;
-      // Remove cache-busting query param for final URL
-      const cleanUrl = url.split('?')[0];
-      processedContent = processedContent.replace(
-        placeholder,
-        `\n<img src="${cleanUrl}" alt="활동 사진 ${index + 1}" style="max-width:100%; border-radius:8px; margin: 16px 0;" />\n`
-      );
-    });
-    
-    // Handle remaining placeholders
-    const placeholderRegex = /\[IMAGE_PLACEHOLDER_(\d+)\]/g;
-    processedContent = processedContent.replace(placeholderRegex, (match, num) => {
-      const idx = parseInt(num) - 1;
-      if (idx >= 0 && idx < imageUrls.length) {
-        const cleanUrl = imageUrls[idx].split('?')[0];
-        return `\n<img src="${cleanUrl}" alt="활동 사진 ${num}" style="max-width:100%; border-radius:8px; margin: 16px 0;" />\n`;
-      }
-      return '';
-    });
-    
-    // Convert line breaks to <br> for HTML
-    html += processedContent.split('\n').map(line => `<p>${line}</p>`).join('\n');
-    html += `\n\n<p>${hashtags.join(' ')}</p>`;
-    
-    return html;
-  };
-
-  const copyAsHtml = async () => {
-    try {
-      const htmlContent = getHtmlContent();
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
       
-      // Copy as rich text (HTML) for Naver blog
-      const blob = new Blob([htmlContent], { type: 'text/html' });
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Resize if wider than MAX_WIDTH
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Cannot get canvas context'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to JPEG base64 with 85% quality
+        const base64 = canvas.toDataURL('image/jpeg', 0.85);
+        resolve(base64);
+      };
+
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(blob);
+    });
+  };
+
+  const copyAsHtmlWithBase64 = async () => {
+    setIsCopying(true);
+    
+    try {
+      // Convert all images to Base64
+      const base64Images = await Promise.all(
+        imageUrls.map(url => imageToBase64(url))
+      );
+
+      // Build HTML content with Base64 images
+      let html = `<h2>${title}</h2>\n\n`;
+      
+      let processedContent = content;
+      base64Images.forEach((base64, index) => {
+        const placeholder = `[IMAGE_PLACEHOLDER_${index + 1}]`;
+        processedContent = processedContent.replace(
+          placeholder,
+          `\n<img src="${base64}" alt="활동 사진 ${index + 1}" style="max-width:100%; border-radius:8px; margin: 16px 0;" />\n`
+        );
+      });
+      
+      // Handle any remaining placeholders
+      const placeholderRegex = /\[IMAGE_PLACEHOLDER_(\d+)\]/g;
+      processedContent = processedContent.replace(placeholderRegex, (match, num) => {
+        const idx = parseInt(num) - 1;
+        if (idx >= 0 && idx < base64Images.length) {
+          return `\n<img src="${base64Images[idx]}" alt="활동 사진 ${num}" style="max-width:100%; border-radius:8px; margin: 16px 0;" />\n`;
+        }
+        return '';
+      });
+      
+      // Convert line breaks to paragraphs
+      html += processedContent.split('\n').map(line => `<p>${line}</p>`).join('\n');
+      html += `\n\n<p>${hashtags.join(' ')}</p>`;
+
+      // Copy as HTML to clipboard
+      const blob = new Blob([html], { type: 'text/html' });
       const clipboardItem = new ClipboardItem({
         'text/html': blob,
         'text/plain': new Blob([`${title}\n\n${content}\n\n${hashtags.join(' ')}`], { type: 'text/plain' })
       });
       
       await navigator.clipboard.write([clipboardItem]);
-      setCopied('html');
+      
+      setCopied(true);
       toast({
-        title: '네이버 블로그용 복사 완료! 🎉',
-        description: '네이버 블로그 에디터에 붙여넣기하면 사진까지 함께 들어갑니다.',
+        title: '복사 완료! 🎉',
+        description: '네이버 블로그 에디터에 붙여넣기하세요. 사진 편집(펜 아이콘) 기능이 활성화됩니다.',
       });
-      setTimeout(() => setCopied(null), 3000);
+      setTimeout(() => setCopied(false), 3000);
+      
     } catch (err) {
-      // Fallback to plain text
-      const plainText = `${title}\n\n${content}\n\n${hashtags.join(' ')}`;
-      await navigator.clipboard.writeText(plainText);
-      setCopied('all');
+      console.error('Failed to copy:', err);
       toast({
-        title: '텍스트로 복사됨',
-        description: '브라우저 제한으로 HTML 복사가 불가합니다. 텍스트만 복사되었습니다.',
-        variant: 'default',
+        title: '복사 실패',
+        description: '이미지 변환 중 오류가 발생했습니다. 다시 시도해주세요.',
+        variant: 'destructive',
       });
-      setTimeout(() => setCopied(null), 3000);
+    } finally {
+      setIsCopying(false);
     }
   };
 
@@ -147,7 +140,7 @@ const PhotoBlogResult = ({
       await onDeletePhotos();
       toast({
         title: '이미지 삭제 완료! 🗑️',
-        description: '업로드된 이미지가 모두 삭제되었습니다. 새 글을 쓰시려면 새로고침하세요.',
+        description: '업로드된 이미지가 모두 삭제되었습니다.',
       });
     } catch (error) {
       toast({
@@ -160,7 +153,47 @@ const PhotoBlogResult = ({
     }
   };
 
-  const contentParts = renderContentWithInteractiveImages();
+  // Render content with images
+  const renderContentWithImages = () => {
+    const parts: Array<{ type: 'text' | 'image'; content: string; index?: number }> = [];
+    
+    const placeholderRegex = /\[IMAGE_PLACEHOLDER_(\d+)\]/g;
+    let lastIndex = 0;
+    let match;
+
+    placeholderRegex.lastIndex = 0;
+
+    while ((match = placeholderRegex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push({
+          type: 'text',
+          content: content.slice(lastIndex, match.index)
+        });
+      }
+
+      const imageIndex = parseInt(match[1]) - 1;
+      if (imageIndex >= 0 && imageIndex < imageUrls.length) {
+        parts.push({
+          type: 'image',
+          content: imageUrls[imageIndex],
+          index: imageIndex
+        });
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < content.length) {
+      parts.push({
+        type: 'text',
+        content: content.slice(lastIndex)
+      });
+    }
+
+    return parts;
+  };
+
+  const contentParts = renderContentWithImages();
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -169,7 +202,7 @@ const PhotoBlogResult = ({
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
               <FileText className="w-5 h-5 text-primary" />
-              생성된 글 (사진 클릭하여 추가 블러 가능)
+              생성된 글
             </CardTitle>
           </div>
         </CardHeader>
@@ -184,10 +217,10 @@ const PhotoBlogResult = ({
 
           <Separator />
 
-          {/* 본문 (인터랙티브 이미지 포함) */}
+          {/* 본문 */}
           <div className="space-y-2">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              본문 미리보기 (이미지를 클릭하면 블러 처리됩니다)
+              본문 미리보기
             </span>
             <div className="p-4 rounded-lg bg-card border border-border max-h-[600px] overflow-y-auto">
               <div className="prose prose-sm max-w-none text-foreground leading-relaxed">
@@ -201,14 +234,13 @@ const PhotoBlogResult = ({
                         }}
                       />
                     );
-                  } else if (part.type === 'image' && part.index !== undefined) {
+                  } else if (part.type === 'image') {
                     return (
-                      <ResultImageBlur
+                      <img
                         key={`img-${part.index}-${idx}`}
-                        imageUrl={part.content}
-                        storagePath={imagePaths[part.index]}
-                        alt={`활동 사진 ${part.index + 1}`}
-                        onImageUpdated={(newUrl) => onImageUrlUpdate(part.index!, newUrl)}
+                        src={part.content}
+                        alt={`활동 사진 ${(part.index ?? 0) + 1}`}
+                        className="w-full rounded-lg shadow-md my-4"
                       />
                     );
                   }
@@ -246,13 +278,18 @@ const PhotoBlogResult = ({
         <Button
           variant="olive"
           className="w-full h-12 text-base"
-          onClick={copyAsHtml}
-          disabled={isDeleting}
+          onClick={copyAsHtmlWithBase64}
+          disabled={isDeleting || isCopying}
         >
-          {copied === 'html' ? (
+          {isCopying ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              네이버 에디터용 포맷으로 변환 중...
+            </>
+          ) : copied ? (
             <>
               <Check className="w-5 h-5" />
-              복사 완료!
+              복사 완료! 네이버에 붙여넣으세요
             </>
           ) : (
             <>
@@ -267,7 +304,7 @@ const PhotoBlogResult = ({
             variant="outline"
             className="flex-1"
             onClick={handleDeletePhotos}
-            disabled={isDeleting}
+            disabled={isDeleting || isCopying}
           >
             {isDeleting ? (
               <>
@@ -286,7 +323,7 @@ const PhotoBlogResult = ({
             variant="outline"
             className="flex-1"
             onClick={onReset}
-            disabled={isDeleting}
+            disabled={isDeleting || isCopying}
           >
             <RotateCcw className="w-4 h-4" />
             새로운 글 작성하기
