@@ -15,8 +15,6 @@ interface PhotoBlogResultProps {
   onDeletePhotos: () => Promise<void>;
 }
 
-const MAX_WIDTH = 1200;
-
 const PhotoBlogResult = ({ 
   title, 
   content, 
@@ -26,69 +24,20 @@ const PhotoBlogResult = ({
   onDeletePhotos
 }: PhotoBlogResultProps) => {
   const [copied, setCopied] = useState(false);
-  const [isCopying, setIsCopying] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
-  // Fetch image, resize, and convert to Base64
-  const imageToBase64 = async (url: string): Promise<string> => {
-    const response = await fetch(url);
-    const blob = await response.blob();
-    
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-
-        // Resize if wider than MAX_WIDTH
-        if (width > MAX_WIDTH) {
-          height = Math.round((height * MAX_WIDTH) / width);
-          width = MAX_WIDTH;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Cannot get canvas context'));
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        // Convert to JPEG base64 with 85% quality
-        const base64 = canvas.toDataURL('image/jpeg', 0.85);
-        resolve(base64);
-      };
-
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(blob);
-    });
-  };
-
-  const copyAsHtmlWithBase64 = async () => {
-    setIsCopying(true);
-    
+  const copyAsHtml = async () => {
     try {
-      // Convert all images to Base64
-      const base64Images = await Promise.all(
-        imageUrls.map(url => imageToBase64(url))
-      );
-
-      // Build HTML content with Base64 images
+      // Build HTML content with Supabase URLs
       let html = `<h2>${title}</h2>\n\n`;
       
       let processedContent = content;
-      base64Images.forEach((base64, index) => {
+      imageUrls.forEach((url, index) => {
         const placeholder = `[IMAGE_PLACEHOLDER_${index + 1}]`;
         processedContent = processedContent.replace(
           placeholder,
-          `\n<img src="${base64}" alt="활동 사진 ${index + 1}" style="max-width:100%; border-radius:8px; margin: 16px 0;" />\n`
+          `\n<img src="${url}" alt="활동 사진 ${index + 1}" style="max-width:100%; border-radius:8px; margin: 16px 0;" />\n`
         );
       });
       
@@ -96,8 +45,8 @@ const PhotoBlogResult = ({
       const placeholderRegex = /\[IMAGE_PLACEHOLDER_(\d+)\]/g;
       processedContent = processedContent.replace(placeholderRegex, (match, num) => {
         const idx = parseInt(num) - 1;
-        if (idx >= 0 && idx < base64Images.length) {
-          return `\n<img src="${base64Images[idx]}" alt="활동 사진 ${num}" style="max-width:100%; border-radius:8px; margin: 16px 0;" />\n`;
+        if (idx >= 0 && idx < imageUrls.length) {
+          return `\n<img src="${imageUrls[idx]}" alt="활동 사진 ${num}" style="max-width:100%; border-radius:8px; margin: 16px 0;" />\n`;
         }
         return '';
       });
@@ -117,8 +66,8 @@ const PhotoBlogResult = ({
       
       setCopied(true);
       toast({
-        title: '복사 완료! 🎉',
-        description: '네이버 블로그 에디터에 붙여넣기하세요. 사진 편집(펜 아이콘) 기능이 활성화됩니다.',
+        title: '네이버 블로그용 HTML 복사 완료! 🎉',
+        description: '네이버 블로그 에디터에 붙여넣기하세요.',
       });
       setTimeout(() => setCopied(false), 3000);
       
@@ -126,11 +75,9 @@ const PhotoBlogResult = ({
       console.error('Failed to copy:', err);
       toast({
         title: '복사 실패',
-        description: '이미지 변환 중 오류가 발생했습니다. 다시 시도해주세요.',
+        description: '복사 중 오류가 발생했습니다. 다시 시도해주세요.',
         variant: 'destructive',
       });
-    } finally {
-      setIsCopying(false);
     }
   };
 
@@ -278,15 +225,10 @@ const PhotoBlogResult = ({
         <Button
           variant="olive"
           className="w-full h-12 text-base"
-          onClick={copyAsHtmlWithBase64}
-          disabled={isDeleting || isCopying}
+          onClick={copyAsHtml}
+          disabled={isDeleting}
         >
-          {isCopying ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              네이버 에디터용 포맷으로 변환 중...
-            </>
-          ) : copied ? (
+          {copied ? (
             <>
               <Check className="w-5 h-5" />
               복사 완료! 네이버에 붙여넣으세요
@@ -304,7 +246,7 @@ const PhotoBlogResult = ({
             variant="outline"
             className="flex-1"
             onClick={handleDeletePhotos}
-            disabled={isDeleting || isCopying}
+            disabled={isDeleting}
           >
             {isDeleting ? (
               <>
@@ -323,7 +265,7 @@ const PhotoBlogResult = ({
             variant="outline"
             className="flex-1"
             onClick={onReset}
-            disabled={isDeleting || isCopying}
+            disabled={isDeleting}
           >
             <RotateCcw className="w-4 h-4" />
             새로운 글 작성하기
