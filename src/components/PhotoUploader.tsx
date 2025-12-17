@@ -2,7 +2,9 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Camera, X, GripVertical, Loader2 } from 'lucide-react';
+import { Camera, X, GripVertical, Loader2, Shield } from 'lucide-react';
+import { processImagesWithFaceBlur } from '@/lib/faceBlur';
+import { toast } from 'sonner';
 
 export interface PhotoItem {
   id: string;
@@ -20,20 +22,55 @@ interface PhotoUploaderProps {
 
 const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 5 }: PhotoUploaderProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const remainingSlots = maxPhotos - photos.length;
     const filesToAdd = files.slice(0, remainingSlots);
 
-    const newPhotos: PhotoItem[] = filesToAdd.map((file) => ({
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      file,
-      preview: URL.createObjectURL(file),
-      keyword: '',
-    }));
+    if (filesToAdd.length === 0) return;
 
-    onPhotosChange([...photos, ...newPhotos]);
+    setIsProcessing(true);
+    setProcessingStatus('얼굴 인식 모델 로딩 중...');
+
+    try {
+      const { processedFiles, totalFacesBlurred } = await processImagesWithFaceBlur(
+        filesToAdd,
+        (current, total) => {
+          setProcessingStatus(`얼굴 인식 및 블러 처리 중... (${current}/${total})`);
+        }
+      );
+
+      const newPhotos: PhotoItem[] = processedFiles.map((file) => ({
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file,
+        preview: URL.createObjectURL(file),
+        keyword: '',
+      }));
+
+      onPhotosChange([...photos, ...newPhotos]);
+
+      if (totalFacesBlurred > 0) {
+        toast.success(`${totalFacesBlurred}개의 얼굴이 자동으로 블러 처리되었습니다.`);
+      }
+    } catch (error) {
+      console.error('Face blur processing failed:', error);
+      toast.error('얼굴 블러 처리 중 오류가 발생했습니다. 원본 이미지가 사용됩니다.');
+      
+      // Fallback: use original files
+      const newPhotos: PhotoItem[] = filesToAdd.map((file) => ({
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file,
+        preview: URL.createObjectURL(file),
+        keyword: '',
+      }));
+      onPhotosChange([...photos, ...newPhotos]);
+    } finally {
+      setIsProcessing(false);
+      setProcessingStatus('');
+    }
     
     // Reset input
     if (fileInputRef.current) {
@@ -57,6 +94,22 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
 
   return (
     <div className="space-y-4">
+      {/* Processing Overlay */}
+      {isProcessing && (
+        <Card className="border-primary/50 bg-primary/10">
+          <CardContent className="p-4 flex items-center gap-3">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-primary">{processingStatus}</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                <Shield className="w-3 h-3" />
+                개인정보 보호를 위해 얼굴을 자동으로 블러 처리합니다
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Upload Button */}
       <Card className="border-dashed border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors">
         <CardContent className="p-6">
@@ -67,13 +120,13 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
             multiple
             onChange={handleFileSelect}
             className="hidden"
-            disabled={isLoading || photos.length >= maxPhotos}
+            disabled={isLoading || isProcessing || photos.length >= maxPhotos}
           />
           <Button
             variant="ghost"
             className="w-full h-24 flex flex-col gap-2"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading || photos.length >= maxPhotos}
+            disabled={isLoading || isProcessing || photos.length >= maxPhotos}
           >
             <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
               <Camera className="w-6 h-6 text-primary" />
@@ -81,9 +134,10 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
             <span className="text-sm text-muted-foreground">
               📸 오늘의 활동 사진 순서대로 선택하기 (최대 {maxPhotos}장)
             </span>
-            <span className="text-xs text-muted-foreground">
-              {photos.length}/{maxPhotos}장 선택됨
-            </span>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Shield className="w-3 h-3" />
+              <span>얼굴 자동 블러 처리 • {photos.length}/{maxPhotos}장 선택됨</span>
+            </div>
           </Button>
         </CardContent>
       </Card>
