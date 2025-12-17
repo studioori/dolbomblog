@@ -1,71 +1,135 @@
 import { useState } from 'react';
 import Header from '@/components/Header';
-import CategoryChips from '@/components/CategoryChips';
-import ActivityForm from '@/components/ActivityForm';
-import GeneratedContent from '@/components/GeneratedContent';
-import { type ActivityCategory, type BlogInput, type GeneratedBlog } from '@/types/blog';
-import { generateBlogContent } from '@/lib/blogGenerator';
+import PhotoUploader, { type PhotoItem } from '@/components/PhotoUploader';
+import PhotoBlogResult from '@/components/PhotoBlogResult';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { usePhotoBlog } from '@/hooks/usePhotoBlog';
 import { useToast } from '@/hooks/use-toast';
+import { Loader2, Sparkles, AlertCircle } from 'lucide-react';
+
 const Index = () => {
-  const [selectedCategory, setSelectedCategory] = useState<ActivityCategory | null>(null);
-  const [generatedBlog, setGeneratedBlog] = useState<GeneratedBlog | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const { toast } = useToast();
+  
   const {
-    toast
-  } = useToast();
-  const handleCategorySelect = (category: ActivityCategory) => {
-    setSelectedCategory(category);
-    setGeneratedBlog(null);
-  };
-  const handleSubmit = async (input: BlogInput) => {
-    setIsLoading(true);
-    try {
-      const blog = await generateBlogContent(input);
-      setGeneratedBlog(blog);
+    isUploading,
+    isGenerating,
+    uploadedUrls,
+    generatedBlog,
+    error,
+    uploadAndGenerate,
+    deletePhotos,
+    reset,
+  } = usePhotoBlog();
+
+  const isLoading = isUploading || isGenerating;
+
+  const handleGenerate = async () => {
+    if (photos.length === 0) {
       toast({
-        title: '글 생성 완료! ✨',
-        description: '생성된 글을 확인하고 복사해주세요.'
+        title: '사진을 선택해주세요',
+        description: '최소 1장 이상의 사진이 필요합니다.',
+        variant: 'destructive',
       });
-    } catch (error) {
-      toast({
-        title: '오류 발생',
-        description: '글 생성 중 문제가 발생했습니다. 다시 시도해주세요.',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsLoading(false);
+      return;
     }
+
+    await uploadAndGenerate(photos);
   };
+
   const handleReset = () => {
-    setSelectedCategory(null);
-    setGeneratedBlog(null);
+    // Cleanup preview URLs
+    photos.forEach(photo => URL.revokeObjectURL(photo.preview));
+    setPhotos([]);
+    reset();
   };
-  return <div className="min-h-screen bg-background">
+
+  const handleDeleteAndReset = async () => {
+    await deletePhotos();
+    handleReset();
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
       <Header />
       
       <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">
         {/* 히어로 섹션 */}
-        {!selectedCategory && !generatedBlog && <div className="text-center space-y-4 py-8 animate-fade-in">
+        {!generatedBlog && (
+          <div className="text-center space-y-4 py-6 animate-fade-in">
             <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-warm flex items-center justify-center shadow-card animate-float">
-              <span className="text-4xl">📝</span>
+              <span className="text-4xl">📸</span>
             </div>
             <h2 className="text-2xl font-bold text-foreground">
-              오늘의 활동을 <span className="text-gradient-warm">따뜻하게</span> 전해보세요
+              사진으로 <span className="text-gradient-warm">따뜻한 이야기</span>를 만들어보세요
             </h2>
             <p className="text-muted-foreground max-w-md mx-auto">
-              어르신들의 일상을 보호자님께 전문적이고 감성적으로 전달하는 
-              블로그 글을 AI가 작성해 드립니다.
+              활동 사진을 업로드하고 키워드를 입력하면,
+              AI가 사진과 글이 어우러진 블로그 포스팅을 자동으로 작성해 드립니다.
             </p>
-          </div>}
+          </div>
+        )}
 
-        {/* 카테고리 선택 */}
-        {!generatedBlog && <CategoryChips selectedCategory={selectedCategory} onSelectCategory={handleCategorySelect} />}
+        {/* 사진 업로더 (결과가 없을 때만 표시) */}
+        {!generatedBlog && (
+          <div className="space-y-4">
+            <PhotoUploader
+              photos={photos}
+              onPhotosChange={setPhotos}
+              isLoading={isLoading}
+              maxPhotos={5}
+            />
 
-        {/* 입력 폼 */}
-        {selectedCategory && !generatedBlog && <ActivityForm category={selectedCategory} onSubmit={handleSubmit} isLoading={isLoading} />}
+            {/* 에러 메시지 */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-        {/* 생성된 콘텐츠 */}
-        {generatedBlog && <GeneratedContent blog={generatedBlog} onReset={handleReset} />}
+            {/* 생성 버튼 */}
+            {photos.length > 0 && (
+              <Button
+                variant="olive"
+                size="lg"
+                className="w-full h-14 text-lg"
+                onClick={handleGenerate}
+                disabled={isLoading}
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    사진 업로드 중...
+                  </>
+                ) : isGenerating ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    AI가 글을 작성하고 있어요...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    블로그 글 생성하기
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* 생성된 결과 */}
+        {generatedBlog && (
+          <PhotoBlogResult
+            title={generatedBlog.title}
+            content={generatedBlog.content}
+            hashtags={generatedBlog.hashtags}
+            imageUrls={uploadedUrls}
+            onReset={handleReset}
+            onDeletePhotos={handleDeleteAndReset}
+          />
+        )}
       </main>
 
       {/* 푸터 */}
@@ -73,6 +137,8 @@ const Index = () => {
         <p>© 2025 studioori </p>
         <p className="mt-1">어르신의 하루를 따뜻하게 전합니다 💚</p>
       </footer>
-    </div>;
+    </div>
+  );
 };
+
 export default Index;

@@ -1,0 +1,7 @@
+project_id = "hjtbxxykyyapmizqboxj"
+
+[functions.generate-blog-vision]
+verify_jwt = false
+
+[functions.delete-photos]
+verify_jwt = false
