@@ -1,5 +1,22 @@
 import { useRef, useState } from 'react';
 import imageCompression from 'browser-image-compression';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,6 +36,92 @@ interface PhotoUploaderProps {
   maxPhotos?: number;
 }
 
+interface SortablePhotoItemProps {
+  photo: PhotoItem;
+  index: number;
+  onKeywordChange: (id: string, keyword: string) => void;
+  onRemove: (id: string) => void;
+  isDisabled: boolean;
+}
+
+const SortablePhotoItem = ({ photo, index, onKeywordChange, onRemove, isDisabled }: SortablePhotoItemProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: photo.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className={`overflow-hidden animate-fade-in transition-all duration-200 ${
+        isDragging 
+          ? 'opacity-50 shadow-xl ring-2 ring-primary scale-[1.02] z-50' 
+          : 'shadow-sm'
+      }`}
+    >
+      <CardContent className="p-3">
+        <div className="flex gap-3 items-start">
+          {/* Drag Handle + Order indicator */}
+          <div 
+            className="flex flex-col items-center gap-1 pt-2 cursor-grab active:cursor-grabbing touch-none"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="w-5 h-5 text-muted-foreground/70 hover:text-primary transition-colors" />
+            <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center">
+              {index + 1}
+            </span>
+          </div>
+
+          {/* Thumbnail */}
+          <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+            <img
+              src={photo.preview}
+              alt={`사진 ${index + 1}`}
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          {/* Keyword Input */}
+          <div className="flex-1 space-y-1">
+            <label className="text-xs text-muted-foreground">
+              이 사진의 상황/키워드 입력
+            </label>
+            <Input
+              placeholder="예: 오전 인지활동, 집중하시는 모습"
+              value={photo.keyword}
+              onChange={(e) => onKeywordChange(photo.id, e.target.value)}
+              disabled={isDisabled}
+              className="text-sm"
+            />
+          </div>
+
+          {/* Remove Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            onClick={() => onRemove(photo.id)}
+            disabled={isDisabled}
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const compressImage = async (file: File): Promise<File> => {
   const options = {
     maxSizeMB: 1,
@@ -33,13 +136,34 @@ const compressImage = async (file: File): Promise<File> => {
     return compressedFile;
   } catch (error) {
     console.error('Image compression failed:', error);
-    return file; // Return original if compression fails
+    return file;
   }
 };
 
 const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 5 }: PhotoUploaderProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCompressing, setIsCompressing] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = photos.findIndex((p) => p.id === active.id);
+      const newIndex = photos.findIndex((p) => p.id === over.id);
+      onPhotosChange(arrayMove(photos, oldIndex, newIndex));
+    }
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -51,7 +175,6 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
     setIsCompressing(true);
 
     try {
-      // Compress all images in parallel
       const compressedFiles = await Promise.all(
         filesToAdd.map(file => compressImage(file))
       );
@@ -134,62 +257,36 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
         </CardContent>
       </Card>
 
-      {/* Photo List */}
+      {/* Photo List with Drag & Drop */}
       {photos.length > 0 && (
         <div className="space-y-3">
           <p className="text-sm font-medium text-muted-foreground">
-            선택된 사진 ({photos.length}장) - 순서대로 블로그에 삽입됩니다
+            ↕️ 드래그하여 순서 변경 가능 ({photos.length}장)
           </p>
           
-          {photos.map((photo, index) => (
-            <Card key={photo.id} className="overflow-hidden animate-fade-in">
-              <CardContent className="p-3">
-                <div className="flex gap-3 items-start">
-                  {/* Order indicator */}
-                  <div className="flex flex-col items-center gap-1 pt-2">
-                    <GripVertical className="w-4 h-4 text-muted-foreground/50" />
-                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center">
-                      {index + 1}
-                    </span>
-                  </div>
-
-                  {/* Thumbnail */}
-                  <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
-                    <img
-                      src={photo.preview}
-                      alt={`사진 ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-
-                  {/* Keyword Input */}
-                  <div className="flex-1 space-y-1">
-                    <label className="text-xs text-muted-foreground">
-                      이 사진의 상황/키워드 입력
-                    </label>
-                    <Input
-                      placeholder="예: 오전 인지활동, 집중하시는 모습"
-                      value={photo.keyword}
-                      onChange={(e) => handleKeywordChange(photo.id, e.target.value)}
-                      disabled={isDisabled}
-                      className="text-sm"
-                    />
-                  </div>
-
-                  {/* Remove Button */}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleRemovePhoto(photo.id)}
-                    disabled={isDisabled}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={photos.map(p => p.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-3">
+                {photos.map((photo, index) => (
+                  <SortablePhotoItem
+                    key={photo.id}
+                    photo={photo}
+                    index={index}
+                    onKeywordChange={handleKeywordChange}
+                    onRemove={handleRemovePhoto}
+                    isDisabled={isDisabled}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       )}
     </div>
