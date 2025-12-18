@@ -1,8 +1,9 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import imageCompression from 'browser-image-compression';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Camera, X, GripVertical } from 'lucide-react';
+import { Camera, X, GripVertical, Loader2 } from 'lucide-react';
 
 export interface PhotoItem {
   id: string;
@@ -18,27 +19,58 @@ interface PhotoUploaderProps {
   maxPhotos?: number;
 }
 
+const compressImage = async (file: File): Promise<File> => {
+  const options = {
+    maxSizeMB: 1,
+    maxWidthOrHeight: 1024,
+    useWebWorker: true,
+    fileType: 'image/jpeg' as const,
+    initialQuality: 0.8,
+  };
+
+  try {
+    const compressedFile = await imageCompression(file, options);
+    return compressedFile;
+  } catch (error) {
+    console.error('Image compression failed:', error);
+    return file; // Return original if compression fails
+  }
+};
+
 const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 5 }: PhotoUploaderProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const remainingSlots = maxPhotos - photos.length;
     const filesToAdd = files.slice(0, remainingSlots);
 
     if (filesToAdd.length === 0) return;
 
-    const newPhotos: PhotoItem[] = filesToAdd.map((file) => ({
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      file,
-      preview: URL.createObjectURL(file),
-      keyword: '',
-    }));
+    setIsCompressing(true);
 
-    onPhotosChange([...photos, ...newPhotos]);
-    
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    try {
+      // Compress all images in parallel
+      const compressedFiles = await Promise.all(
+        filesToAdd.map(file => compressImage(file))
+      );
+
+      const newPhotos: PhotoItem[] = compressedFiles.map((file) => ({
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file,
+        preview: URL.createObjectURL(file),
+        keyword: '',
+      }));
+
+      onPhotosChange([...photos, ...newPhotos]);
+    } catch (error) {
+      console.error('Error processing images:', error);
+    } finally {
+      setIsCompressing(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -56,6 +88,8 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
     );
   };
 
+  const isDisabled = isLoading || isCompressing;
+
   return (
     <div className="space-y-4">
       {/* Upload Button */}
@@ -68,23 +102,34 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
             multiple
             onChange={handleFileSelect}
             className="hidden"
-            disabled={isLoading || photos.length >= maxPhotos}
+            disabled={isDisabled || photos.length >= maxPhotos}
           />
           <Button
             variant="ghost"
             className="w-full h-24 flex flex-col gap-2"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading || photos.length >= maxPhotos}
+            disabled={isDisabled || photos.length >= maxPhotos}
           >
-            <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-              <Camera className="w-6 h-6 text-primary" />
-            </div>
-            <span className="text-sm text-muted-foreground">
-              📸 오늘의 활동 사진 순서대로 선택하기 (최대 {maxPhotos}장)
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {photos.length}/{maxPhotos}장 선택됨
-            </span>
+            {isCompressing ? (
+              <>
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <span className="text-sm text-primary font-medium">
+                  📷 사진 최적화 중...
+                </span>
+              </>
+            ) : (
+              <>
+                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Camera className="w-6 h-6 text-primary" />
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  📸 오늘의 활동 사진 순서대로 선택하기 (최대 {maxPhotos}장)
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {photos.length}/{maxPhotos}장 선택됨
+                </span>
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
@@ -126,7 +171,7 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
                       placeholder="예: 오전 인지활동, 집중하시는 모습"
                       value={photo.keyword}
                       onChange={(e) => handleKeywordChange(photo.id, e.target.value)}
-                      disabled={isLoading}
+                      disabled={isDisabled}
                       className="text-sm"
                     />
                   </div>
@@ -137,7 +182,7 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
                     size="icon"
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
                     onClick={() => handleRemovePhoto(photo.id)}
-                    disabled={isLoading}
+                    disabled={isDisabled}
                   >
                     <X className="w-4 h-4" />
                   </Button>
