@@ -19,7 +19,6 @@ const Index = () => {
     generatedBlog,
     error,
     uploadAndGenerate,
-    deletePhotos,
     reset,
   } = usePhotoBlog();
 
@@ -43,11 +42,6 @@ const Index = () => {
     photos.forEach(photo => URL.revokeObjectURL(photo.preview));
     setPhotos([]);
     reset();
-  };
-
-  const handleDeleteAndReset = async () => {
-    await deletePhotos();
-    handleReset();
   };
 
   return (
@@ -127,7 +121,6 @@ const Index = () => {
             hashtags={generatedBlog.hashtags}
             imageUrls={uploadedUrls}
             onReset={handleReset}
-            onDeletePhotos={handleDeleteAndReset}
           />
         )}
       </main>

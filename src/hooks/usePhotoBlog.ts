@@ -12,11 +12,9 @@ interface UsePhotoBlogReturn {
   isUploading: boolean;
   isGenerating: boolean;
   uploadedUrls: string[];
-  uploadedPaths: string[];
   generatedBlog: GeneratedBlog | null;
   error: string | null;
   uploadAndGenerate: (photos: PhotoItem[]) => Promise<void>;
-  deletePhotos: () => Promise<void>;
   reset: () => void;
 }
 
@@ -24,13 +22,11 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
-  const [uploadedPaths, setUploadedPaths] = useState<string[]>([]);
   const [generatedBlog, setGeneratedBlog] = useState<GeneratedBlog | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const uploadPhotos = async (photos: PhotoItem[]): Promise<{ urls: string[], paths: string[] }> => {
+  const uploadPhotos = async (photos: PhotoItem[]): Promise<string[]> => {
     const urls: string[] = [];
-    const paths: string[] = [];
     const sessionId = `session-${Date.now()}`;
 
     for (let i = 0; i < photos.length; i++) {
@@ -54,10 +50,9 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
         .getPublicUrl(fileName);
 
       urls.push(urlData.publicUrl);
-      paths.push(fileName);
     }
 
-    return { urls, paths };
+    return urls;
   };
 
   const uploadAndGenerate = async (photos: PhotoItem[]) => {
@@ -71,9 +66,8 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
 
     try {
       // Step 1: Upload photos to storage
-      const { urls, paths } = await uploadPhotos(photos);
+      const urls = await uploadPhotos(photos);
       setUploadedUrls(urls);
-      setUploadedPaths(paths);
 
       setIsUploading(false);
       setIsGenerating(true);
@@ -111,29 +105,8 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
     }
   };
 
-  const deletePhotos = async () => {
-    if (uploadedPaths.length === 0) return;
-
-    try {
-      const { error: fnError } = await supabase.functions.invoke('delete-photos', {
-        body: { filePaths: uploadedPaths },
-      });
-
-      if (fnError) {
-        throw new Error(fnError.message);
-      }
-
-      setUploadedUrls([]);
-      setUploadedPaths([]);
-    } catch (err) {
-      console.error('Error deleting photos:', err);
-      throw err;
-    }
-  };
-
   const reset = () => {
     setUploadedUrls([]);
-    setUploadedPaths([]);
     setGeneratedBlog(null);
     setError(null);
   };
@@ -142,11 +115,9 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
     isUploading,
     isGenerating,
     uploadedUrls,
-    uploadedPaths,
     generatedBlog,
     error,
     uploadAndGenerate,
-    deletePhotos,
     reset,
   };
 };

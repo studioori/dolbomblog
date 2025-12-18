@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Copy, Check, RotateCcw, FileText, Hash, Trash2, Loader2 } from 'lucide-react';
+import { Copy, Check, RotateCcw, FileText, Hash } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface PhotoBlogResultProps {
@@ -12,7 +12,6 @@ interface PhotoBlogResultProps {
   hashtags: string[];
   imageUrls: string[];
   onReset: () => void;
-  onDeletePhotos: () => Promise<void>;
 }
 
 const PhotoBlogResult = ({ 
@@ -20,11 +19,9 @@ const PhotoBlogResult = ({
   content, 
   hashtags, 
   imageUrls,
-  onReset, 
-  onDeletePhotos
+  onReset
 }: PhotoBlogResultProps) => {
   const [copied, setCopied] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   const copyAsHtml = async () => {
@@ -78,25 +75,6 @@ const PhotoBlogResult = ({
         description: '복사 중 오류가 발생했습니다. 다시 시도해주세요.',
         variant: 'destructive',
       });
-    }
-  };
-
-  const handleDeletePhotos = async () => {
-    setIsDeleting(true);
-    try {
-      await onDeletePhotos();
-      toast({
-        title: '이미지 삭제 완료! 🗑️',
-        description: '업로드된 이미지가 모두 삭제되었습니다.',
-      });
-    } catch (error) {
-      toast({
-        title: '삭제 실패',
-        description: '이미지 삭제 중 오류가 발생했습니다.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -221,56 +199,33 @@ const PhotoBlogResult = ({
       </Card>
 
       {/* Action Buttons */}
-      <div className="space-y-2">
+      <div className="flex gap-3">
         <Button
           variant="olive"
-          className="w-full h-12 text-base"
+          className="flex-1 h-12 text-base"
           onClick={copyAsHtml}
-          disabled={isDeleting}
         >
           {copied ? (
             <>
               <Check className="w-5 h-5" />
-              복사 완료! 네이버에 붙여넣으세요
+              복사 완료!
             </>
           ) : (
             <>
               <Copy className="w-5 h-5" />
-              네이버 블로그용 복사하기 (사진 포함)
+              네이버 블로그용 복사하기
             </>
           )}
         </Button>
 
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={handleDeletePhotos}
-            disabled={isDeleting}
-          >
-            {isDeleting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                삭제 중...
-              </>
-            ) : (
-              <>
-                <Trash2 className="w-4 h-4" />
-                붙여넣기 완료 (이미지 삭제)
-              </>
-            )}
-          </Button>
-
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={onReset}
-            disabled={isDeleting}
-          >
-            <RotateCcw className="w-4 h-4" />
-            새로운 글 작성하기
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          className="h-12 px-6"
+          onClick={onReset}
+        >
+          <RotateCcw className="w-4 h-4" />
+          새 글 작성
+        </Button>
       </div>
     </div>
   );
