@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Copy, Check, RotateCcw, FileText, Hash } from 'lucide-react';
+import { Copy, Check, RotateCcw, Hash } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface PhotoBlogResultProps {
@@ -12,6 +10,12 @@ interface PhotoBlogResultProps {
   hashtags: string[];
   imageUrls: string[];
   onReset: () => void;
+}
+
+interface StoryBlock {
+  imageUrl?: string;
+  imageIndex?: number;
+  text: string;
 }
 
 const PhotoBlogResult = ({ 
@@ -26,7 +30,6 @@ const PhotoBlogResult = ({
 
   const copyAsHtml = async () => {
     try {
-      // Build HTML content with Supabase URLs
       let html = `<h2>${title}</h2>\n\n`;
       
       let processedContent = content;
@@ -38,7 +41,6 @@ const PhotoBlogResult = ({
         );
       });
       
-      // Handle any remaining placeholders
       const placeholderRegex = /\[IMAGE_PLACEHOLDER_(\d+)\]/g;
       processedContent = processedContent.replace(placeholderRegex, (match, num) => {
         const idx = parseInt(num) - 1;
@@ -48,11 +50,9 @@ const PhotoBlogResult = ({
         return '';
       });
       
-      // Convert line breaks to paragraphs
       html += processedContent.split('\n').map(line => `<p>${line}</p>`).join('\n');
       html += `\n\n<p>${hashtags.join(' ')}</p>`;
 
-      // Copy as HTML to clipboard
       const blob = new Blob([html], { type: 'text/html' });
       const clipboardItem = new ClipboardItem({
         'text/html': blob,
@@ -78,131 +78,142 @@ const PhotoBlogResult = ({
     }
   };
 
-  // Render content with images
-  const renderContentWithImages = () => {
-    const parts: Array<{ type: 'text' | 'image'; content: string; index?: number }> = [];
-    
+  // Parse content into Story Blocks (Image First structure)
+  const parseStoryBlocks = (): StoryBlock[] => {
+    const blocks: StoryBlock[] = [];
     const placeholderRegex = /\[IMAGE_PLACEHOLDER_(\d+)\]/g;
+    
     let lastIndex = 0;
     let match;
+    let currentText = '';
 
     placeholderRegex.lastIndex = 0;
 
     while ((match = placeholderRegex.exec(content)) !== null) {
+      // Collect text before this placeholder
       if (match.index > lastIndex) {
-        parts.push({
-          type: 'text',
-          content: content.slice(lastIndex, match.index)
-        });
+        currentText += content.slice(lastIndex, match.index);
       }
 
       const imageIndex = parseInt(match[1]) - 1;
+      
+      // When we find an image, create a block with image first, then accumulated text
       if (imageIndex >= 0 && imageIndex < imageUrls.length) {
-        parts.push({
-          type: 'image',
-          content: imageUrls[imageIndex],
-          index: imageIndex
+        // If there's accumulated text from before, add it to previous block or create text-only block
+        if (currentText.trim() && blocks.length > 0) {
+          blocks[blocks.length - 1].text += currentText;
+          currentText = '';
+        } else if (currentText.trim()) {
+          blocks.push({ text: currentText.trim() });
+          currentText = '';
+        }
+        
+        // Create new block with this image (text will be added after)
+        blocks.push({
+          imageUrl: imageUrls[imageIndex],
+          imageIndex: imageIndex,
+          text: ''
         });
       }
 
       lastIndex = match.index + match[0].length;
     }
 
+    // Handle remaining text
     if (lastIndex < content.length) {
-      parts.push({
-        type: 'text',
-        content: content.slice(lastIndex)
-      });
+      currentText += content.slice(lastIndex);
     }
 
-    return parts;
+    // Assign remaining text to the last image block, or create text-only block
+    if (currentText.trim()) {
+      if (blocks.length > 0 && blocks[blocks.length - 1].imageUrl) {
+        blocks[blocks.length - 1].text = currentText.trim();
+      } else {
+        blocks.push({ text: currentText.trim() });
+      }
+    }
+
+    // If no blocks created but we have content, create a single text block
+    if (blocks.length === 0 && content.trim()) {
+      blocks.push({ text: content.trim() });
+    }
+
+    return blocks;
   };
 
-  const contentParts = renderContentWithImages();
+  const storyBlocks = parseStoryBlocks();
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      <Card className="shadow-card border-border/50">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="w-5 h-5 text-primary" />
-              생성된 글
-            </CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* 제목 */}
-          <div className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">제목</span>
-            <div className="p-4 rounded-lg bg-accent/50 border border-border">
-              <h3 className="text-lg font-bold text-foreground">{title}</h3>
-            </div>
-          </div>
+    <article className="w-full max-w-2xl mx-auto px-4 py-8 animate-fade-in">
+      {/* Title Section */}
+      <header className="mb-12">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight mb-4">
+          {title}
+        </h1>
+        <div className="h-px bg-border/60 w-16" />
+      </header>
 
-          <Separator />
-
-          {/* 본문 */}
-          <div className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              본문 미리보기
-            </span>
-            <div className="p-4 rounded-lg bg-card border border-border max-h-[600px] overflow-y-auto">
-              <div className="prose prose-sm max-w-none text-foreground leading-relaxed">
-                {contentParts.map((part, idx) => {
-                  if (part.type === 'text') {
-                    return (
-                      <div 
-                        key={idx}
-                        dangerouslySetInnerHTML={{ 
-                          __html: part.content.replace(/\n/g, '<br />') 
-                        }}
-                      />
-                    );
-                  } else if (part.type === 'image') {
-                    return (
-                      <img
-                        key={`img-${part.index}-${idx}`}
-                        src={part.content}
-                        alt={`활동 사진 ${(part.index ?? 0) + 1}`}
-                        className="w-full rounded-lg shadow-md my-4"
-                      />
-                    );
-                  }
-                  return null;
-                })}
+      {/* Story Blocks - Image First Layout */}
+      <div className="space-y-16">
+        {storyBlocks.map((block, idx) => (
+          <section 
+            key={idx} 
+            className="story-block"
+          >
+            {/* Image First */}
+            {block.imageUrl && (
+              <div className="image-wrapper mb-6">
+                <img
+                  src={block.imageUrl}
+                  alt={`활동 사진 ${(block.imageIndex ?? 0) + 1}`}
+                  className="w-full rounded-2xl shadow-sm"
+                />
               </div>
-            </div>
-          </div>
+            )}
+            
+            {/* Text Content Below */}
+            {block.text && (
+              <div className="text-content">
+                {block.text.split('\n').map((paragraph, pIdx) => (
+                  paragraph.trim() && (
+                    <p 
+                      key={pIdx}
+                      className="text-lg text-foreground/85 leading-8 mb-4 text-left"
+                    >
+                      {paragraph}
+                    </p>
+                  )
+                ))}
+              </div>
+            )}
+          </section>
+        ))}
+      </div>
 
-          <Separator />
+      {/* Hashtags Section */}
+      <footer className="mt-16 pt-8 border-t border-border/40">
+        <div className="flex items-center gap-2 mb-4">
+          <Hash className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-muted-foreground">태그</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {hashtags.map((tag, index) => (
+            <Badge
+              key={index}
+              variant="secondary"
+              className="bg-olive-light text-secondary border-0 px-3 py-1"
+            >
+              {tag}
+            </Badge>
+          ))}
+        </div>
+      </footer>
 
-          {/* 해시태그 */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Hash className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">해시태그</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {hashtags.map((tag, index) => (
-                <Badge
-                  key={index}
-                  variant="secondary"
-                  className="bg-olive-light text-secondary border-0"
-                >
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Action Buttons */}
-      <div className="flex gap-3">
+      {/* Action Buttons - Sticky Bottom */}
+      <div className="sticky bottom-4 mt-12 flex gap-3 bg-background/80 backdrop-blur-sm p-4 -mx-4 rounded-2xl shadow-card">
         <Button
           variant="olive"
-          className="flex-1 h-12 text-base"
+          className="flex-1 h-12 text-base font-medium"
           onClick={copyAsHtml}
         >
           {copied ? (
@@ -220,14 +231,14 @@ const PhotoBlogResult = ({
 
         <Button
           variant="outline"
-          className="h-12 px-6"
+          className="h-12 px-6 font-medium"
           onClick={onReset}
         >
           <RotateCcw className="w-4 h-4" />
           새 글 작성
         </Button>
       </div>
-    </div>
+    </article>
   );
 };
 
