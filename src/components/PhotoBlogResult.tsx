@@ -147,38 +147,35 @@ const PhotoBlogResult = ({
     <article className="w-full max-w-2xl mx-auto px-4 py-8 animate-fade-in">
       {/* Title Section */}
       <header className="mb-12">
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight mb-4">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 leading-tight mb-4">
           {title}
         </h1>
         <div className="h-px bg-border/60 w-16" />
       </header>
 
-      {/* Story Blocks - Image First Layout */}
-      <div className="space-y-16">
+      {/* Seamless Story Stream - Continuous Flow, No Cards */}
+      <div className="space-y-0">
         {storyBlocks.map((block, idx) => (
-          <section 
-            key={idx} 
-            className="story-block"
-          >
-            {/* Image First */}
+          <div key={idx}>
+            {/* Image - Sharp Corners, Full Width */}
             {block.imageUrl && (
-              <div className="image-wrapper mb-6">
+              <div className="mt-12 mb-6">
                 <img
                   src={block.imageUrl}
                   alt={`활동 사진 ${(block.imageIndex ?? 0) + 1}`}
-                  className="w-full rounded-2xl shadow-sm"
+                  className="w-full rounded-none"
                 />
               </div>
             )}
             
-            {/* Text Content Below */}
+            {/* Text - Left Aligned, Loose Leading */}
             {block.text && (
-              <div className="text-content">
+              <div>
                 {block.text.split('\n').map((paragraph, pIdx) => (
                   paragraph.trim() && (
                     <p 
                       key={pIdx}
-                      className="text-lg text-foreground/85 leading-8 mb-4 text-left"
+                      className="text-lg text-gray-800 leading-loose mb-6 text-left"
                     >
                       {paragraph}
                     </p>
@@ -186,31 +183,26 @@ const PhotoBlogResult = ({
                 ))}
               </div>
             )}
-          </section>
+          </div>
         ))}
       </div>
 
       {/* Hashtags Section */}
       <footer className="mt-16 pt-8 border-t border-border/40">
-        <div className="flex items-center gap-2 mb-4">
-          <Hash className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-muted-foreground">태그</span>
-        </div>
         <div className="flex flex-wrap gap-2">
           {hashtags.map((tag, index) => (
-            <Badge
+            <span
               key={index}
-              variant="secondary"
-              className="bg-olive-light text-secondary border-0 px-3 py-1"
+              className="text-sm text-primary/70 hover:text-primary transition-colors"
             >
               {tag}
-            </Badge>
+            </span>
           ))}
         </div>
       </footer>
 
       {/* Action Buttons - Sticky Bottom */}
-      <div className="sticky bottom-4 mt-12 flex gap-3 bg-background/80 backdrop-blur-sm p-4 -mx-4 rounded-2xl shadow-card">
+      <div className="sticky bottom-4 mt-12 flex gap-3">
         <Button
           variant="olive"
           className="flex-1 h-12 text-base font-medium"
