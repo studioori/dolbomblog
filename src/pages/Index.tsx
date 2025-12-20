@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { usePhotoBlog } from '@/hooks/usePhotoBlog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { Loader2, Sparkles, AlertCircle, ImageIcon } from 'lucide-react';
 
 const Index = () => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -38,7 +38,6 @@ const Index = () => {
   };
 
   const handleReset = () => {
-    // Cleanup preview URLs
     photos.forEach(photo => URL.revokeObjectURL(photo.preview));
     setPhotos([]);
     reset();
@@ -48,26 +47,28 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">
+      <main className="max-w-2xl mx-auto px-4 py-10 space-y-10">
         {/* 히어로 섹션 */}
         {!generatedBlog && (
-          <div className="text-center space-y-4 py-6 animate-fade-in">
-            <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-warm flex items-center justify-center shadow-card animate-float">
-              <span className="text-4xl">📸</span>
+          <div className="text-center space-y-5 py-8 animate-fade-in-up">
+            <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-warm flex items-center justify-center shadow-elevated animate-bounce-soft">
+              <ImageIcon className="w-9 h-9 text-primary-foreground" />
             </div>
-            <h2 className="text-2xl font-bold text-foreground">
-              사진으로 <span className="text-gradient-warm">따뜻한 이야기</span>를 만들어보세요
-            </h2>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              활동 사진을 업로드하고 키워드를 입력하면,
-              AI가 사진과 글이 어우러진 블로그 포스팅을 자동으로 작성해 드립니다.
-            </p>
+            <div className="space-y-3">
+              <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                사진으로 <span className="text-gradient-warm">따뜻한 이야기</span>를 만들어보세요
+              </h2>
+              <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
+                활동 사진을 업로드하고 키워드를 입력하면,<br/>
+                AI가 사진과 글이 어우러진 블로그 포스팅을 자동으로 작성해 드립니다.
+              </p>
+            </div>
           </div>
         )}
 
-        {/* 사진 업로더 (결과가 없을 때만 표시) */}
+        {/* 사진 업로더 */}
         {!generatedBlog && (
-          <div className="space-y-4">
+          <div className="space-y-5 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             <PhotoUploader
               photos={photos}
               onPhotosChange={setPhotos}
@@ -77,7 +78,7 @@ const Index = () => {
 
             {/* 에러 메시지 */}
             {error && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="animate-scale-in">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
@@ -86,9 +87,9 @@ const Index = () => {
             {/* 생성 버튼 */}
             {photos.length > 0 && (
               <Button
-                variant="olive"
-                size="lg"
-                className="w-full h-14 text-lg"
+                variant="sage"
+                size="xl"
+                className="w-full"
                 onClick={handleGenerate}
                 disabled={isLoading}
               >
@@ -126,9 +127,9 @@ const Index = () => {
       </main>
 
       {/* 푸터 */}
-      <footer className="py-8 text-center text-sm text-muted-foreground border-t border-border/50">
-        <p>© 2025 studioori </p>
-        <p className="mt-1">어르신의 하루를 따뜻하게 전합니다 💚</p>
+      <footer className="py-10 text-center text-sm text-muted-foreground border-t border-border/30">
+        <p className="font-medium">© 2025 studioori</p>
+        <p className="mt-1.5 text-muted-foreground/80">어르신의 하루를 따뜻하게 전합니다 💚</p>
       </footer>
     </div>
   );

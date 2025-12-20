@@ -46,7 +46,7 @@ const GeneratedContent = ({ blog, onReset }: GeneratedContentProps) => {
               생성된 글
             </CardTitle>
             <Button
-              variant="olive"
+              variant="sage"
               size="sm"
               onClick={() => copyToClipboard(fullContent, 'all')}
             >
@@ -118,7 +118,7 @@ const GeneratedContent = ({ blog, onReset }: GeneratedContentProps) => {
                 <Badge
                   key={index}
                   variant="secondary"
-                  className="bg-olive-light text-secondary border-0"
+                  className="bg-sage-light text-secondary border-0"
                 >
                   {tag}
                 </Badge>

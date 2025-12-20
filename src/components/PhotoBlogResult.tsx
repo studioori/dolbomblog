@@ -204,7 +204,7 @@ const PhotoBlogResult = ({
       {/* Action Buttons - Sticky Bottom */}
       <div className="sticky bottom-4 mt-12 flex gap-3">
         <Button
-          variant="olive"
+          variant="sage"
           className="flex-1 h-12 text-base font-medium"
           onClick={copyAsHtml}
         >

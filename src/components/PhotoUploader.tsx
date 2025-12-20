@@ -20,7 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Camera, X, GripVertical, Loader2 } from 'lucide-react';
+import { Camera, X, GripVertical, Loader2, ImagePlus } from 'lucide-react';
 
 export interface PhotoItem {
   id: string;
@@ -63,28 +63,28 @@ const SortablePhotoItem = ({ photo, index, onKeywordChange, onRemove, isDisabled
     <Card
       ref={setNodeRef}
       style={style}
-      className={`overflow-hidden animate-fade-in transition-all duration-200 ${
+      className={`overflow-hidden animate-fade-in transition-all duration-300 border-border/60 ${
         isDragging 
-          ? 'opacity-50 shadow-xl ring-2 ring-primary scale-[1.02] z-50' 
-          : 'shadow-sm'
+          ? 'opacity-60 shadow-elevated ring-2 ring-primary/40 scale-[1.01] z-50' 
+          : 'shadow-soft hover:shadow-card'
       }`}
     >
-      <CardContent className="p-3">
-        <div className="flex gap-3 items-start">
+      <CardContent className="p-4">
+        <div className="flex gap-4 items-start">
           {/* Drag Handle + Order indicator */}
           <div 
-            className="flex flex-col items-center gap-1 pt-2 cursor-grab active:cursor-grabbing touch-none"
+            className="flex flex-col items-center gap-2 pt-1 cursor-grab active:cursor-grabbing touch-none"
             {...attributes}
             {...listeners}
           >
-            <GripVertical className="w-5 h-5 text-muted-foreground/70 hover:text-primary transition-colors" />
-            <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center">
+            <GripVertical className="w-5 h-5 text-muted-foreground/50 hover:text-primary transition-colors" />
+            <span className="w-7 h-7 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
               {index + 1}
             </span>
           </div>
 
           {/* Thumbnail */}
-          <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+          <div className="relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-muted shadow-soft">
             <img
               src={photo.preview}
               alt={`사진 ${index + 1}`}
@@ -93,8 +93,8 @@ const SortablePhotoItem = ({ photo, index, onKeywordChange, onRemove, isDisabled
           </div>
 
           {/* Keyword Input */}
-          <div className="flex-1 space-y-1">
-            <label className="text-xs text-muted-foreground">
+          <div className="flex-1 space-y-2">
+            <label className="text-xs font-medium text-muted-foreground">
               이 사진의 상황/키워드 입력
             </label>
             <Input
@@ -102,7 +102,7 @@ const SortablePhotoItem = ({ photo, index, onKeywordChange, onRemove, isDisabled
               value={photo.keyword}
               onChange={(e) => onKeywordChange(photo.id, e.target.value)}
               disabled={isDisabled}
-              className="text-sm"
+              className="text-sm h-10"
             />
           </div>
 
@@ -110,7 +110,7 @@ const SortablePhotoItem = ({ photo, index, onKeywordChange, onRemove, isDisabled
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
             onClick={() => onRemove(photo.id)}
             disabled={isDisabled}
           >
@@ -214,10 +214,10 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
   const isDisabled = isLoading || isCompressing;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Upload Button */}
-      <Card className="border-dashed border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors">
-        <CardContent className="p-6">
+      <Card className="border-dashed border-2 border-primary/25 bg-terracotta-light/50 hover:bg-terracotta-light hover:border-primary/40 transition-all duration-300">
+        <CardContent className="p-8">
           <input
             ref={fileInputRef}
             type="file"
@@ -229,28 +229,30 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
           />
           <Button
             variant="ghost"
-            className="w-full h-24 flex flex-col gap-2"
+            className="w-full h-28 flex flex-col gap-3 hover:bg-transparent"
             onClick={() => fileInputRef.current?.click()}
             disabled={isDisabled || photos.length >= maxPhotos}
           >
             {isCompressing ? (
               <>
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
                 <span className="text-sm text-primary font-medium">
-                  📷 사진 최적화 중...
+                  사진 최적화 중...
                 </span>
               </>
             ) : (
               <>
-                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Camera className="w-6 h-6 text-primary" />
+                <div className="w-14 h-14 rounded-2xl bg-primary/15 flex items-center justify-center">
+                  <ImagePlus className="w-7 h-7 text-primary" />
                 </div>
-                <span className="text-sm text-muted-foreground">
-                  📸 오늘의 활동 사진 순서대로 선택하기 (최대 {maxPhotos}장)
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {photos.length}/{maxPhotos}장 선택됨
-                </span>
+                <div className="space-y-1">
+                  <span className="text-sm font-medium text-foreground">
+                    오늘의 활동 사진 순서대로 선택하기
+                  </span>
+                  <span className="text-xs text-muted-foreground block">
+                    {photos.length}/{maxPhotos}장 선택됨 · 최대 {maxPhotos}장
+                  </span>
+                </div>
               </>
             )}
           </Button>
@@ -259,9 +261,10 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
 
       {/* Photo List with Drag & Drop */}
       {photos.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-sm font-medium text-muted-foreground">
-            ↕️ 드래그하여 순서 변경 가능 ({photos.length}장)
+        <div className="space-y-4">
+          <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <GripVertical className="w-4 h-4" />
+            드래그하여 순서 변경 가능 ({photos.length}장)
           </p>
           
           <DndContext
