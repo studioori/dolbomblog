@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import imageCompression from 'browser-image-compression';
 import {
   DndContext,
@@ -22,6 +22,19 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { X, GripVertical, Loader2, ImagePlus, Upload } from 'lucide-react';
 
+const PLACEHOLDER_EXAMPLES = [
+  "예: 오전 인지활동, 집중하시는 모습",
+  "예: 점심식사, 맛있게 드시는 장면",
+  "예: 미술활동, 작품 만드시는 모습",
+  "예: 체조시간, 함께 운동하시는 모습",
+  "예: 생일잔치, 케이크 앞에서 미소",
+  "예: 노래교실, 즐겁게 노래하시는 모습",
+  "예: 산책시간, 야외에서 걷는 모습",
+  "예: 종이접기, 손으로 만드시는 모습",
+  "예: 간식시간, 다과 드시는 장면",
+  "예: 프로그램 참여, 적극적으로 활동하시는 모습",
+];
+
 export interface PhotoItem {
   id: string;
   file: File;
@@ -42,9 +55,10 @@ interface SortablePhotoItemProps {
   onKeywordChange: (id: string, keyword: string) => void;
   onRemove: (id: string) => void;
   isDisabled: boolean;
+  placeholderExample: string;
 }
 
-const SortablePhotoItem = ({ photo, index, onKeywordChange, onRemove, isDisabled }: SortablePhotoItemProps) => {
+const SortablePhotoItem = ({ photo, index, onKeywordChange, onRemove, isDisabled, placeholderExample }: SortablePhotoItemProps) => {
   const {
     attributes,
     listeners,
@@ -99,7 +113,7 @@ const SortablePhotoItem = ({ photo, index, onKeywordChange, onRemove, isDisabled
               이 사진의 상황/키워드 입력
             </label>
             <Input
-              placeholder="예: 오전 인지활동, 집중하시는 모습"
+              placeholder={placeholderExample}
               value={photo.keyword}
               onChange={(e) => onKeywordChange(photo.id, e.target.value)}
               disabled={isDisabled}
@@ -328,6 +342,7 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
                     onKeywordChange={handleKeywordChange}
                     onRemove={handleRemovePhoto}
                     isDisabled={isDisabled}
+                    placeholderExample={PLACEHOLDER_EXAMPLES[index % PLACEHOLDER_EXAMPLES.length]}
                   />
                 ))}
               </div>
