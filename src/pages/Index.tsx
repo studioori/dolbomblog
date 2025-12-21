@@ -51,8 +51,8 @@ const Index = () => {
         {/* 히어로 섹션 */}
         {!generatedBlog && (
           <div className="text-center space-y-4 sm:space-y-5 py-6 sm:py-8 animate-fade-in">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-2xl sm:rounded-3xl bg-gradient-forest flex items-center justify-center shadow-elevated animate-bounce-soft group cursor-default transition-all duration-300 hover:shadow-hover hover:scale-105">
-              <ImageIcon className="w-7 h-7 sm:w-9 sm:h-9 text-primary-foreground transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-2xl sm:rounded-3xl bg-gradient-forest flex items-center justify-center shadow-elevated group cursor-default transition-all duration-500 hover:shadow-glow hover:scale-105 ring-4 ring-primary/10">
+              <ImageIcon className="w-7 h-7 sm:w-9 sm:h-9 text-primary-foreground drop-shadow-md transition-transform duration-300 group-hover:scale-110" />
             </div>
             <div className="space-y-2 sm:space-y-3">
               <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
