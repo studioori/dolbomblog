@@ -47,19 +47,19 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="max-w-2xl mx-auto px-4 py-10 space-y-10">
+      <main className="max-w-2xl mx-auto px-4 py-6 sm:py-10 space-y-6 sm:space-y-10">
         {/* 히어로 섹션 */}
         {!generatedBlog && (
-          <div className="text-center space-y-5 py-8 animate-fade-in">
-            <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-forest flex items-center justify-center shadow-elevated animate-bounce-soft group cursor-default transition-all duration-300 hover:shadow-hover hover:scale-105">
-              <ImageIcon className="w-9 h-9 text-primary-foreground transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
+          <div className="text-center space-y-4 sm:space-y-5 py-6 sm:py-8 animate-fade-in">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-2xl sm:rounded-3xl bg-gradient-forest flex items-center justify-center shadow-elevated animate-bounce-soft group cursor-default transition-all duration-300 hover:shadow-hover hover:scale-105">
+              <ImageIcon className="w-7 h-7 sm:w-9 sm:h-9 text-primary-foreground transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
             </div>
-            <div className="space-y-3">
-              <h2 className="text-2xl font-bold text-foreground tracking-tight">
+            <div className="space-y-2 sm:space-y-3">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
                 사진으로 <span className="text-gradient-gold inline-block transition-transform duration-300 hover:scale-105">따뜻한 이야기</span>를 만들어보세요
               </h2>
-              <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-                활동 사진을 업로드하고 키워드를 입력하면,<br/>
+              <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto leading-relaxed px-4 sm:px-0">
+                활동 사진을 업로드하고 키워드를 입력하면,<br className="hidden sm:block"/>
                 AI가 사진과 글이 어우러진 블로그 포스팅을 자동으로 작성해 드립니다.
               </p>
             </div>
