@@ -15,11 +15,11 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/90 shadow-soft hover:shadow-card active:scale-[0.98]",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        // Custom variants - Refined
+        // Custom variants - Forest & Gold Theme
         chip: "bg-card border border-border text-foreground hover:border-primary/40 hover:bg-accent shadow-soft hover:shadow-card transition-all",
-        chipActive: "bg-gradient-warm text-primary-foreground border-transparent shadow-card",
-        warm: "bg-gradient-warm text-primary-foreground shadow-card hover:shadow-hover hover:scale-[1.01] active:scale-[0.99]",
-        sage: "bg-gradient-sage text-secondary-foreground shadow-card hover:shadow-hover hover:scale-[1.01] active:scale-[0.99]",
+        chipActive: "bg-gradient-forest text-primary-foreground border-transparent shadow-card",
+        forest: "bg-gradient-forest text-primary-foreground shadow-card hover:shadow-hover hover:scale-[1.01] active:scale-[0.99]",
+        gold: "bg-gradient-gold text-charcoal shadow-card hover:shadow-hover hover:scale-[1.01] active:scale-[0.99]",
         soft: "bg-accent text-accent-foreground hover:bg-accent/80 border border-border/50",
         glass: "bg-card/80 backdrop-blur-sm border border-border/50 text-foreground hover:bg-card hover:shadow-card",
       },
