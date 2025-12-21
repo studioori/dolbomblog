@@ -46,7 +46,7 @@ const GeneratedContent = ({ blog, onReset }: GeneratedContentProps) => {
               생성된 글
             </CardTitle>
             <Button
-              variant="sage"
+              variant="forest"
               size="sm"
               onClick={() => copyToClipboard(fullContent, 'all')}
             >

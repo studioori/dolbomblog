@@ -249,7 +249,7 @@ const PhotoUploader = ({ photos, onPhotosChange, isLoading = false, maxPhotos = 
         className={`border-dashed border-2 transition-all duration-300 cursor-pointer group ${
           isDragOver 
             ? 'border-primary bg-primary/10 scale-[1.02] shadow-elevated' 
-            : 'border-primary/25 bg-terracotta-light/50 hover:bg-terracotta-light hover:border-primary/40 hover:shadow-card'
+            : 'border-primary/25 bg-forest-light hover:bg-primary/5 hover:border-primary/40 hover:shadow-card'
         }`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}

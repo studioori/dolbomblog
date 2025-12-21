@@ -7,109 +7,112 @@
 
 @layer base {
   :root {
-    /* Refined Warm Theme - Soft & Elegant */
-    --background: 30 25% 97%;
-    --foreground: 25 20% 18%;
+    /* Elegant Forest & Gold Theme */
+    --background: 60 20% 98%;
+    --foreground: 160 25% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 25 20% 18%;
+    --card-foreground: 160 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 25 20% 18%;
+    --popover-foreground: 160 25% 12%;
 
-    /* Warm Terracotta - Primary */
-    --primary: 18 65% 55%;
+    /* Deep Forest Green - Primary */
+    --primary: 158 45% 28%;
     --primary-foreground: 0 0% 100%;
 
-    /* Sage Green - Secondary */
-    --secondary: 145 30% 45%;
-    --secondary-foreground: 0 0% 100%;
+    /* Warm Gold - Secondary */
+    --secondary: 40 70% 50%;
+    --secondary-foreground: 160 25% 12%;
 
-    --muted: 30 15% 92%;
-    --muted-foreground: 25 10% 50%;
+    --muted: 60 10% 93%;
+    --muted-foreground: 160 15% 45%;
 
-    /* Accent - Warm Sand */
-    --accent: 35 40% 92%;
-    --accent-foreground: 25 20% 18%;
+    /* Accent - Soft Cream */
+    --accent: 45 45% 95%;
+    --accent-foreground: 160 25% 12%;
 
-    --destructive: 0 70% 55%;
+    --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 15% 88%;
-    --input: 30 15% 90%;
-    --ring: 18 65% 55%;
+    --border: 60 15% 88%;
+    --input: 60 10% 92%;
+    --ring: 158 45% 28%;
 
-    --radius: 0.875rem;
+    --radius: 1rem;
 
-    /* Custom colors - Refined palette */
-    --sage: 145 30% 45%;
-    --sage-light: 145 25% 94%;
-    --terracotta: 18 65% 55%;
-    --terracotta-light: 18 50% 95%;
-    --sand: 35 40% 92%;
-    --cream: 30 25% 97%;
-    --charcoal: 25 20% 18%;
-    --taupe: 30 10% 60%;
+    /* Custom colors - Forest & Gold palette */
+    --forest: 158 45% 28%;
+    --forest-light: 158 30% 95%;
+    --forest-dark: 158 50% 18%;
+    --gold: 40 70% 50%;
+    --gold-light: 40 60% 94%;
+    --gold-dark: 40 75% 40%;
+    --ivory: 45 45% 97%;
+    --charcoal: 160 25% 12%;
+    --stone: 60 10% 55%;
 
-    /* Refined Shadows */
-    --shadow-soft: 0 2px 12px -2px hsl(25 20% 20% / 0.06);
-    --shadow-card: 0 4px 20px -4px hsl(25 20% 20% / 0.08);
-    --shadow-hover: 0 8px 30px -6px hsl(25 20% 20% / 0.12);
-    --shadow-elevated: 0 12px 40px -8px hsl(25 20% 20% / 0.15);
+    /* Elegant Shadows */
+    --shadow-soft: 0 2px 15px -3px hsl(158 40% 20% / 0.08);
+    --shadow-card: 0 4px 25px -5px hsl(158 40% 20% / 0.1);
+    --shadow-hover: 0 10px 40px -8px hsl(158 40% 20% / 0.15);
+    --shadow-elevated: 0 20px 50px -12px hsl(158 40% 20% / 0.2);
+    --shadow-glow: 0 0 30px hsl(40 70% 50% / 0.2);
 
-    /* Elegant Gradients */
-    --gradient-warm: linear-gradient(135deg, hsl(18 65% 55%) 0%, hsl(28 70% 60%) 100%);
-    --gradient-sage: linear-gradient(135deg, hsl(145 30% 45%) 0%, hsl(155 35% 50%) 100%);
-    --gradient-soft: linear-gradient(180deg, hsl(30 25% 97%) 0%, hsl(35 20% 94%) 100%);
-    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.9) 0%, hsl(0 0% 100% / 0.7) 100%);
+    /* Premium Gradients */
+    --gradient-forest: linear-gradient(135deg, hsl(158 45% 28%) 0%, hsl(168 40% 35%) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(40 70% 50%) 0%, hsl(35 75% 55%) 100%);
+    --gradient-soft: linear-gradient(180deg, hsl(60 20% 98%) 0%, hsl(45 30% 96%) 100%);
+    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.95) 0%, hsl(0 0% 100% / 0.85) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(45 45% 97%) 0%, hsl(60 20% 98%) 50%, hsl(158 20% 96%) 100%);
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 99%;
+    --sidebar-foreground: 160 25% 20%;
+    --sidebar-primary: 158 45% 28%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 45 45% 95%;
+    --sidebar-accent-foreground: 160 25% 12%;
+    --sidebar-border: 60 15% 90%;
+    --sidebar-ring: 158 45% 28%;
   }
 
   .dark {
-    --background: 25 15% 8%;
-    --foreground: 30 20% 92%;
+    --background: 160 20% 6%;
+    --foreground: 45 30% 92%;
 
-    --card: 25 15% 12%;
-    --card-foreground: 30 20% 92%;
+    --card: 160 18% 10%;
+    --card-foreground: 45 30% 92%;
 
-    --popover: 25 15% 12%;
-    --popover-foreground: 30 20% 92%;
+    --popover: 160 18% 10%;
+    --popover-foreground: 45 30% 92%;
 
-    --primary: 18 60% 58%;
-    --primary-foreground: 25 15% 8%;
+    --primary: 158 40% 40%;
+    --primary-foreground: 160 20% 6%;
 
-    --secondary: 145 25% 42%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 40 65% 55%;
+    --secondary-foreground: 160 20% 6%;
 
-    --muted: 25 12% 18%;
-    --muted-foreground: 30 15% 60%;
+    --muted: 160 15% 15%;
+    --muted-foreground: 60 15% 55%;
 
-    --accent: 25 20% 18%;
-    --accent-foreground: 30 20% 92%;
+    --accent: 160 18% 14%;
+    --accent-foreground: 45 30% 92%;
 
     --destructive: 0 60% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 25 12% 20%;
-    --input: 25 12% 20%;
-    --ring: 18 60% 58%;
+    --border: 160 15% 18%;
+    --input: 160 15% 18%;
+    --ring: 158 40% 40%;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-background: 160 18% 8%;
+    --sidebar-foreground: 45 30% 90%;
+    --sidebar-primary: 158 40% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 160 15% 14%;
+    --sidebar-accent-foreground: 45 30% 90%;
+    --sidebar-border: 160 15% 16%;
+    --sidebar-ring: 158 40% 40%;
   }
 }
 
@@ -126,31 +129,39 @@
 }
 
 @layer utilities {
-  .text-gradient-warm {
-    background: var(--gradient-warm);
+  .text-gradient-forest {
+    background: var(--gradient-forest);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  .text-gradient-sage {
-    background: var(--gradient-sage);
+  .text-gradient-gold {
+    background: var(--gradient-gold);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  .bg-gradient-warm {
-    background: var(--gradient-warm);
+  .bg-gradient-forest {
+    background: var(--gradient-forest);
   }
 
-  .bg-gradient-sage {
-    background: var(--gradient-sage);
+  .bg-gradient-gold {
+    background: var(--gradient-gold);
+  }
+
+  .bg-gradient-hero {
+    background: var(--gradient-hero);
   }
 
   .bg-gradient-glass {
     background: var(--gradient-glass);
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(16px);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
   }
 
   .shadow-soft {

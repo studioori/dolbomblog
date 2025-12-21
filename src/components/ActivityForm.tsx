@@ -199,7 +199,7 @@ const ActivityForm = ({ category, onSubmit, isLoading }: ActivityFormProps) => {
 
         {/* 생성 버튼 */}
         <Button
-          variant="warm"
+          variant="forest"
           size="xl"
           className="w-full"
           onClick={handleSubmit}

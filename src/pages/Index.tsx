@@ -51,12 +51,12 @@ const Index = () => {
         {/* 히어로 섹션 */}
         {!generatedBlog && (
           <div className="text-center space-y-5 py-8 animate-fade-in">
-            <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-warm flex items-center justify-center shadow-elevated animate-bounce-soft group cursor-default transition-all duration-300 hover:shadow-hover hover:scale-105">
+            <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-forest flex items-center justify-center shadow-elevated animate-bounce-soft group cursor-default transition-all duration-300 hover:shadow-hover hover:scale-105">
               <ImageIcon className="w-9 h-9 text-primary-foreground transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
             </div>
             <div className="space-y-3">
               <h2 className="text-2xl font-bold text-foreground tracking-tight">
-                사진으로 <span className="text-gradient-warm inline-block transition-transform duration-300 hover:scale-105">따뜻한 이야기</span>를 만들어보세요
+                사진으로 <span className="text-gradient-gold inline-block transition-transform duration-300 hover:scale-105">따뜻한 이야기</span>를 만들어보세요
               </h2>
               <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
                 활동 사진을 업로드하고 키워드를 입력하면,<br/>
@@ -88,7 +88,7 @@ const Index = () => {
             {photos.length > 0 && (
               <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
                 <Button
-                  variant="sage"
+                  variant="forest"
                   size="xl"
                   className="w-full group relative overflow-hidden"
                   onClick={handleGenerate}
