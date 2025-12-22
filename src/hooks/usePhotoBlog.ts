@@ -90,11 +90,28 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
         throw new Error(data.error);
       }
 
-      setGeneratedBlog({
+      const blogData = {
         title: data.title || '오늘 하루도 따뜻했습니다',
         content: data.content || '',
         hashtags: data.hashtags || ['#늘봄주야간보호센터'],
-      });
+      };
+
+      setGeneratedBlog(blogData);
+
+      // Save to database for 24h history
+      const fullContent = `${blogData.title}\n\n${blogData.content}\n\n${blogData.hashtags.join(' ')}`;
+      
+      const { error: saveError } = await supabase
+        .from('generated_posts')
+        .insert({
+          content: fullContent,
+          image_paths: urls,
+        });
+
+      if (saveError) {
+        console.warn('Failed to save post to history:', saveError);
+        // Don't throw - just log warning, the generation was successful
+      }
 
     } catch (err) {
       console.error('Error in uploadAndGenerate:', err);
