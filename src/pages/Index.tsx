@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Header from '@/components/Header';
 import PhotoUploader, { type PhotoItem } from '@/components/PhotoUploader';
 import PhotoBlogResult from '@/components/PhotoBlogResult';
+import RecentPostsList from '@/components/RecentPostsList';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { usePhotoBlog } from '@/hooks/usePhotoBlog';
@@ -132,6 +133,11 @@ const Index = () => {
               onReset={handleReset}
             />
           </div>
+        )}
+
+        {/* 최근 생성된 글 목록 */}
+        {!generatedBlog && (
+          <RecentPostsList />
         )}
       </main>
 
