@@ -125,7 +125,7 @@ serve(async (req) => {
   }
 
   try {
-    const { photos } = await req.json();
+    const { photos, centerName } = await req.json();
     
     if (!photos || !Array.isArray(photos) || photos.length === 0) {
       throw new Error("사진 데이터가 필요합니다.");
@@ -136,11 +136,15 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    // Use dynamic center name from user profile
+    const dynamicCenterName = centerName || "늘봄주야간보호센터";
+    const dynamicSystemInstruction = SYSTEM_INSTRUCTION.replace(/의정부 늘봄주야간보호센터/g, dynamicCenterName);
+
     // Build multimodal message content
     const userContent: any[] = [
       {
         type: "text",
-        text: `다음은 오늘 하루 센터의 활동 사진들을 시간 순서대로 나열한 것입니다. 각 사진과 키워드를 참고하여, 사진의 흐름에 따라 자연스러운 하루 일과를 담은 블로그 포스팅을 작성해주세요.\n\n총 ${photos.length}장의 사진이 있습니다.\n\n`
+        text: `다음은 오늘 하루 '${dynamicCenterName}'의 활동 사진들을 시간 순서대로 나열한 것입니다. 각 사진과 키워드를 참고하여, 사진의 흐름에 따라 자연스러운 하루 일과를 담은 블로그 포스팅을 작성해주세요.\n\n총 ${photos.length}장의 사진이 있습니다.\n\n`
       }
     ];
 
@@ -171,7 +175,7 @@ serve(async (req) => {
       text: "\n위 사진들의 흐름을 자연스럽게 연결하여 하나의 완성된 이야기로 작성하고, 적절한 위치에 이미지 플레이스홀더를 꼭 넣어주세요. JSON 형식으로 응답해주세요."
     });
 
-    console.log("Sending request to Lovable AI with", photos.length, "photos");
+    console.log("Sending request to Lovable AI with", photos.length, "photos for center:", dynamicCenterName);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -182,7 +186,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: SYSTEM_INSTRUCTION },
+          { role: "system", content: dynamicSystemInstruction },
           { role: "user", content: userContent }
         ],
       }),

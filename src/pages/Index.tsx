@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import PhotoUploader, { type PhotoItem } from '@/components/PhotoUploader';
 import PhotoBlogResult from '@/components/PhotoBlogResult';
@@ -6,12 +7,15 @@ import RecentPostsList from '@/components/RecentPostsList';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { usePhotoBlog } from '@/hooks/usePhotoBlog';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, AlertCircle, ImageIcon } from 'lucide-react';
+import { Loader2, Sparkles, AlertCircle, ImageIcon, Lock } from 'lucide-react';
 
 const Index = () => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { user, profile, canGenerate, isLoading: authLoading } = useAuth();
   
   const {
     isUploading,
@@ -25,7 +29,42 @@ const Index = () => {
 
   const isLoading = isUploading || isGenerating;
 
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, authLoading, navigate]);
+
   const handleGenerate = async () => {
+    if (!user) {
+      toast({
+        title: '로그인이 필요합니다',
+        description: '서비스를 이용하려면 먼저 로그인해주세요.',
+        variant: 'destructive',
+      });
+      navigate('/auth');
+      return;
+    }
+
+    if (!profile?.is_active) {
+      toast({
+        title: '서비스 이용 불가',
+        description: '관리자 승인 후 이용할 수 있습니다.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!canGenerate) {
+      toast({
+        title: '이용 횟수 초과',
+        description: '이번 달 이용 횟수를 초과했습니다. 관리자에게 문의하세요.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (photos.length === 0) {
       toast({
         title: '사진을 선택해주세요',
@@ -44,11 +83,44 @@ const Index = () => {
     reset();
   };
 
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show inactive notice
+  const showInactiveNotice = user && profile && !profile.is_active;
+  const showLimitReached = user && profile && profile.is_active && !canGenerate;
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
       <main className="max-w-2xl mx-auto px-4 py-6 sm:py-10 space-y-6 sm:space-y-10">
+        {/* 비활성화 상태 안내 */}
+        {showInactiveNotice && (
+          <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+            <Lock className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-700 dark:text-amber-400">
+              계정이 아직 승인되지 않았습니다. 관리자 승인 후 서비스를 이용할 수 있습니다.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* 사용량 초과 안내 */}
+        {showLimitReached && (
+          <Alert className="border-red-500/50 bg-red-50 dark:bg-red-950/20">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-700 dark:text-red-400">
+              이번 달 이용 횟수({profile.monthly_limit}회)를 모두 사용했습니다. 관리자에게 문의하세요.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* 히어로 섹션 */}
         {!generatedBlog && (
           <div className="text-center space-y-4 sm:space-y-5 py-6 sm:py-8 animate-fade-in">
@@ -63,12 +135,18 @@ const Index = () => {
                 활동 사진을 업로드하고 키워드를 입력하면,<br className="hidden sm:block"/>
                 AI가 사진과 글이 어우러진 블로그 포스팅을 자동으로 작성해 드립니다.
               </p>
+              {profile && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium">{profile.center_name}</span> · 
+                  이번 달 {profile.current_usage}/{profile.monthly_limit}회 사용
+                </p>
+              )}
             </div>
           </div>
         )}
 
         {/* 사진 업로더 */}
-        {!generatedBlog && (
+        {!generatedBlog && canGenerate && (
           <div className="space-y-5 animate-fade-in" style={{ animationDelay: '0.15s', animationFillMode: 'backwards' }}>
             <PhotoUploader
               photos={photos}

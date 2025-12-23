@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { type PhotoItem } from '@/components/PhotoUploader';
 
 interface GeneratedBlog {
@@ -24,6 +25,7 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   const [generatedBlog, setGeneratedBlog] = useState<GeneratedBlog | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { user, profile, refreshProfile } = useAuth();
 
   const uploadPhotos = async (photos: PhotoItem[]): Promise<string[]> => {
     const urls: string[] = [];
@@ -61,6 +63,11 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
       return;
     }
 
+    if (!user || !profile) {
+      setError('로그인이 필요합니다.');
+      return;
+    }
+
     setError(null);
     setIsUploading(true);
 
@@ -72,14 +79,14 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
       setIsUploading(false);
       setIsGenerating(true);
 
-      // Step 2: Call AI vision function
+      // Step 2: Call AI vision function with center name
       const photosData = photos.map((photo, index) => ({
         imageUrl: urls[index],
         keyword: photo.keyword || '',
       }));
 
       const { data, error: fnError } = await supabase.functions.invoke('generate-blog-vision', {
-        body: { photos: photosData },
+        body: { photos: photosData, centerName: profile.center_name },
       });
 
       if (fnError) {
@@ -106,12 +113,16 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
         .insert({
           content: fullContent,
           image_paths: urls,
+          user_id: user.id,
         });
 
       if (saveError) {
         console.warn('Failed to save post to history:', saveError);
-        // Don't throw - just log warning, the generation was successful
       }
+
+      // Increment usage count
+      await supabase.rpc('increment_usage', { _user_id: user.id });
+      refreshProfile();
 
     } catch (err) {
       console.error('Error in uploadAndGenerate:', err);
