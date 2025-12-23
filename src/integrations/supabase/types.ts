@@ -20,18 +20,75 @@ export type Database = {
           created_at: string
           id: string
           image_paths: string[]
+          user_id: string | null
         }
         Insert: {
           content: string
           created_at?: string
           id?: string
           image_paths?: string[]
+          user_id?: string | null
         }
         Update: {
           content?: string
           created_at?: string
           id?: string
           image_paths?: string[]
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          center_name: string
+          created_at: string
+          current_usage: number
+          email: string | null
+          id: string
+          is_active: boolean
+          monthly_limit: number
+          plan_tier: string
+          updated_at: string
+        }
+        Insert: {
+          center_name?: string
+          created_at?: string
+          current_usage?: number
+          email?: string | null
+          id: string
+          is_active?: boolean
+          monthly_limit?: number
+          plan_tier?: string
+          updated_at?: string
+        }
+        Update: {
+          center_name?: string
+          created_at?: string
+          current_usage?: number
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          monthly_limit?: number
+          plan_tier?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
         }
         Relationships: []
       }
@@ -40,10 +97,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_generate: { Args: { _user_id: string }; Returns: boolean }
+      get_user_center_name: { Args: { _user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      increment_usage: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -170,6 +236,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
