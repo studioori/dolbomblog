@@ -5,16 +5,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_INSTRUCTION = `# Role Definition
+// Dynamic System Instruction Template
+const getSystemInstruction = (region: string, centerName: string) => `# Role Definition
 
-당신은 '의정부 늘봄주야간보호센터'의 따뜻하고 전문적인 사회복지사입니다.
-경기도 의정부 지역의 어르신들을 내 부모님처럼 모신다는 자부심과 진정성을 담아 글을 작성해야 합니다.
-모든 글의 화자는 '의정부 늘봄주야간보호센터'로 고정됩니다.
+당신은 '${region}'에 위치한 '${centerName}'의 전문적이고 따뜻한 사회복지사입니다.
+글을 작성할 때 다음 지침을 엄격히 따르세요:
 
-**[중요] 센터 이름 규칙:**
-- 센터 이름은 반드시 **"의정부 늘봄주야간보호센터"** 풀 네임으로만 표기하세요.
-- 줄임말(늘봄센터, 늘봄 등)이나 다른 지역명을 사용하지 마세요.
-- "늘푸른", "행복한", "종합복지센터" 등 다른 수식어나 이름을 절대 사용하지 마세요.
+1. **Identity:** 모든 문장에서 화자는 반드시 '${centerName}'여야 합니다.
+2. **Localization:** 글의 도입부나 마무리, 그리고 문맥에 맞게 '${region}' 지역의 날씨나 분위기, 지역 주민들과의 유대감을 자연스럽게 언급하세요.
+   - 예시: "이곳 ${region}에도 따스한 봄바람이 불어옵니다."
+3. **Hashtags:** 해시태그 생성 시 지역명과 센터명을 반드시 포함하세요.
+   - 필수 태그: #${region.replace(/\s/g, '')}주야간보호 #${centerName.replace(/\s/g, '')} #${region.replace(/\s/g, '')}노인돌봄
 
 # 🚫 CRITICAL: 절대 금지 표현 (Negative Constraints)
 
@@ -55,7 +56,7 @@ const SYSTEM_INSTRUCTION = `# Role Definition
 - **Type B (관찰):** 오늘 센터의 아침 풍경, 밥 짓는 냄새, 웃음소리 등 감각적 묘사.
 - **Type C (질문):** 보호자의 안부를 묻거나 공감을 유도.
 - **Type D (감정):** 오늘의 전반적인 센터 분위기 (활기, 차분함, 따뜻함).
-- **Type E (계절):** 날씨/계절 언급 (5번에 1번 꼴로만 사용).
+- **Type E (계절/지역):** ${region} 지역의 날씨/계절과 지역 특색 언급 (5번에 1번 꼴로만 사용).
 
 ## 4. 이미지 플레이스홀더 배치
 
@@ -88,7 +89,7 @@ const SYSTEM_INSTRUCTION = `# Role Definition
 
 **(좋은 예 - 이렇게 작성)**
 
-무언가에 몰입하는 순간만큼은 누구나 청춘이 됩니다. 오늘 의정부 늘봄주야간보호센터에는 그 어느 때보다 뜨거운 열정이 가득했답니다. ✨
+무언가에 몰입하는 순간만큼은 누구나 청춘이 됩니다. 오늘 ${centerName}에는 그 어느 때보다 뜨거운 열정이 가득했답니다. ✨
 
 나른한 아침을 깨우는 데는 힘찬 체조만 한 게 없지요. 신나는 트로트 가락에 맞춰 몸을 이리저리 흔들다 보면, 어느새 이마에는 송글송글 땀방울이 맺히고 얼굴에는 생기가 돕니다. "아이고 시원하다!" 하며 서로 마주 보고 웃으시는 찰나의 순간들이 모여, 오늘 하루를 지탱하는 든든한 에너지가 되었습니다.
 
@@ -105,10 +106,10 @@ const SYSTEM_INSTRUCTION = `# Role Definition
 # 해시태그 지침
 
 해시태그 생성 시 지역 키워드를 적극적으로 포함하세요:
-- #의정부늘봄주야간보호센터 (필수)
-- #의정부주야간보호
-- #의정부노인돌봄
-- #의정부데이케어
+- #${centerName.replace(/\s/g, '')} (필수)
+- #${region.replace(/\s/g, '')}주야간보호
+- #${region.replace(/\s/g, '')}노인돌봄
+- #${region.replace(/\s/g, '')}데이케어
 - 그 외 활동 관련 해시태그
 
 # 결과 형식
@@ -117,15 +118,16 @@ JSON 형식으로 반환하세요:
 {
   "title": "블로그 제목 (감성적이고 흥미로운)",
   "content": "본문 내용 (이미지 플레이스홀더 포함)",
-  "hashtags": ["#의정부늘봄주야간보호센터", "#의정부주야간보호", "#해시태그3", ...최대 10개]
+  "hashtags": ["#${centerName.replace(/\s/g, '')}", "#${region.replace(/\s/g, '')}주야간보호", "#해시태그3", ...최대 10개]
 }`;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { photos, centerName } = await req.json();
+    const { photos, centerName, region } = await req.json();
     
     if (!photos || !Array.isArray(photos) || photos.length === 0) {
       throw new Error("사진 데이터가 필요합니다.");
@@ -136,15 +138,20 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Use dynamic center name from user profile
+    // Use dynamic center name and region from user profile
     const dynamicCenterName = centerName || "늘봄주야간보호센터";
-    const dynamicSystemInstruction = SYSTEM_INSTRUCTION.replace(/의정부 늘봄주야간보호센터/g, dynamicCenterName);
+    const dynamicRegion = region || "";
+    
+    // Generate dynamic system instruction
+    const systemInstruction = getSystemInstruction(dynamicRegion, dynamicCenterName);
+
+    console.log(`Generating blog for center: ${dynamicCenterName}, region: ${dynamicRegion}`);
 
     // Build multimodal message content
     const userContent: any[] = [
       {
         type: "text",
-        text: `다음은 오늘 하루 '${dynamicCenterName}'의 활동 사진들을 시간 순서대로 나열한 것입니다. 각 사진과 키워드를 참고하여, 사진의 흐름에 따라 자연스러운 하루 일과를 담은 블로그 포스팅을 작성해주세요.\n\n총 ${photos.length}장의 사진이 있습니다.\n\n`
+        text: `다음은 오늘 하루 '${dynamicRegion} ${dynamicCenterName}'의 활동 사진들을 시간 순서대로 나열한 것입니다. 각 사진과 키워드를 참고하여, 사진의 흐름에 따라 자연스러운 하루 일과를 담은 블로그 포스팅을 작성해주세요.\n\n총 ${photos.length}장의 사진이 있습니다.\n\n`
       }
     ];
 
@@ -175,7 +182,7 @@ serve(async (req) => {
       text: "\n위 사진들의 흐름을 자연스럽게 연결하여 하나의 완성된 이야기로 작성하고, 적절한 위치에 이미지 플레이스홀더를 꼭 넣어주세요. JSON 형식으로 응답해주세요."
     });
 
-    console.log("Sending request to Lovable AI with", photos.length, "photos for center:", dynamicCenterName);
+    console.log("Sending request to Lovable AI with", photos.length, "photos");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -186,7 +193,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: dynamicSystemInstruction },
+          { role: "system", content: systemInstruction },
           { role: "user", content: userContent }
         ],
       }),
@@ -233,10 +240,11 @@ serve(async (req) => {
     } catch (parseError) {
       console.error("JSON parse error:", parseError);
       // Fallback: create structured content from raw text
+      const regionTag = dynamicRegion ? `#${dynamicRegion.replace(/\s/g, '')}주야간보호` : '#주야간보호';
       parsedContent = {
         title: "오늘 하루도 따뜻했습니다 🌸",
         content: aiContent,
-        hashtags: ["#의정부늘봄주야간보호센터", "#의정부주야간보호", "#의정부노인돌봄"]
+        hashtags: [`#${dynamicCenterName.replace(/\s/g, '')}`, regionTag, `#${dynamicRegion.replace(/\s/g, '')}노인돌봄`]
       };
     }
 

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Heart, Loader2, Building2 } from 'lucide-react';
+import { Heart, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -18,7 +18,6 @@ const loginSchema = z.object({
 const signupSchema = z.object({
   email: z.string().email('올바른 이메일을 입력해주세요'),
   password: z.string().min(6, '비밀번호는 최소 6자 이상이어야 합니다'),
-  centerName: z.string().min(2, '센터명은 최소 2자 이상이어야 합니다').max(50, '센터명은 50자 이하여야 합니다'),
 });
 
 const Auth = () => {
@@ -27,7 +26,6 @@ const Auth = () => {
   const [loginPassword, setLoginPassword] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
-  const [centerName, setCenterName] = useState('');
   
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
@@ -74,8 +72,7 @@ const Auth = () => {
     
     const validation = signupSchema.safeParse({ 
       email: signupEmail, 
-      password: signupPassword,
-      centerName 
+      password: signupPassword
     });
     if (!validation.success) {
       toast({
@@ -87,7 +84,7 @@ const Auth = () => {
     }
 
     setIsLoading(true);
-    const { error } = await signUp(signupEmail, signupPassword, centerName);
+    const { error } = await signUp(signupEmail, signupPassword);
     setIsLoading(false);
 
     if (error) {
@@ -102,9 +99,11 @@ const Auth = () => {
       });
     } else {
       toast({
-        title: '회원가입 완료!',
-        description: '관리자 승인 후 서비스를 이용할 수 있습니다.',
+        title: '회원가입 요청 완료',
+        description: '회원가입 요청이 완료되었습니다. 관리자 승인 후 센터 정보가 등록되면 서비스를 이용하실 수 있습니다.',
       });
+      setSignupEmail('');
+      setSignupPassword('');
     }
   };
 
@@ -193,23 +192,6 @@ const Auth = () => {
                     disabled={isLoading}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="center-name" className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
-                    센터명
-                  </Label>
-                  <Input
-                    id="center-name"
-                    type="text"
-                    placeholder="예: 의정부 늘봄주야간보호센터"
-                    value={centerName}
-                    onChange={(e) => setCenterName(e.target.value)}
-                    disabled={isLoading}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    블로그 글 작성 시 센터명으로 사용됩니다
-                  </p>
-                </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? (
                     <>
@@ -217,12 +199,14 @@ const Auth = () => {
                       가입 중...
                     </>
                   ) : (
-                    '회원가입'
+                    '회원가입 요청'
                   )}
                 </Button>
-                <p className="text-xs text-center text-muted-foreground mt-4">
-                  회원가입 후 관리자 승인이 필요합니다
-                </p>
+                <div className="bg-muted/50 rounded-lg p-4 mt-4">
+                  <p className="text-xs text-center text-muted-foreground">
+                    📋 회원가입 요청 후 관리자가 센터 정보를 등록하고 승인하면 서비스를 이용하실 수 있습니다.
+                  </p>
+                </div>
               </form>
             </TabsContent>
           </Tabs>
