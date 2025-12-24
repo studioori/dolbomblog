@@ -48,6 +48,7 @@ export type Database = {
           is_active: boolean
           monthly_limit: number
           plan_tier: string
+          region: string | null
           updated_at: string
         }
         Insert: {
@@ -59,6 +60,7 @@ export type Database = {
           is_active?: boolean
           monthly_limit?: number
           plan_tier?: string
+          region?: string | null
           updated_at?: string
         }
         Update: {
@@ -70,6 +72,7 @@ export type Database = {
           is_active?: boolean
           monthly_limit?: number
           plan_tier?: string
+          region?: string | null
           updated_at?: string
         }
         Relationships: []

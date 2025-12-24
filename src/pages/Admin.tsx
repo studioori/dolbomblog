@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Users, FileText, Shield, ArrowLeft, Edit, Building2 } from 'lucide-react';
+import { Loader2, Users, FileText, Shield, ArrowLeft, Edit, Building2, MapPin, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -19,6 +19,7 @@ interface Profile {
   id: string;
   email: string;
   center_name: string;
+  region: string;
   plan_tier: string;
   monthly_limit: number;
   current_usage: number;
@@ -46,9 +47,11 @@ const Admin = () => {
 
   // Edit form state
   const [editCenterName, setEditCenterName] = useState('');
+  const [editRegion, setEditRegion] = useState('');
   const [editMonthlyLimit, setEditMonthlyLimit] = useState(10);
   const [editIsActive, setEditIsActive] = useState(false);
   const [editPlanTier, setEditPlanTier] = useState('free');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -103,21 +106,37 @@ const Admin = () => {
   const openEditDialog = (profile: Profile) => {
     setSelectedProfile(profile);
     setEditCenterName(profile.center_name);
+    setEditRegion(profile.region || '');
     setEditMonthlyLimit(profile.monthly_limit);
     setEditIsActive(profile.is_active);
     setEditPlanTier(profile.plan_tier);
+    setValidationError(null);
     setIsDialogOpen(true);
   };
 
   const handleSave = async () => {
     if (!selectedProfile) return;
 
+    // Validation: 활성화 시 센터명과 지역 필수
+    if (editIsActive) {
+      if (!editCenterName.trim() || editCenterName === '내 센터') {
+        setValidationError('서비스 활성화를 위해 센터명을 입력해주세요.');
+        return;
+      }
+      if (!editRegion.trim()) {
+        setValidationError('서비스 활성화를 위해 지역을 입력해주세요.');
+        return;
+      }
+    }
+
+    setValidationError(null);
     setIsSaving(true);
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
           center_name: editCenterName,
+          region: editRegion,
           monthly_limit: editMonthlyLimit,
           is_active: editIsActive,
           plan_tier: editPlanTier,
@@ -224,6 +243,7 @@ const Admin = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>센터명</TableHead>
+                    <TableHead>지역</TableHead>
                     <TableHead>이메일</TableHead>
                     <TableHead>요금제</TableHead>
                     <TableHead>사용량</TableHead>
@@ -235,14 +255,30 @@ const Admin = () => {
                 <TableBody>
                   {profiles.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         가입된 업체가 없습니다
                       </TableCell>
                     </TableRow>
                   ) : (
                     profiles.map((profile) => (
-                      <TableRow key={profile.id}>
-                        <TableCell className="font-medium">{profile.center_name}</TableCell>
+                      <TableRow key={profile.id} className={!profile.is_active ? 'bg-muted/30' : ''}>
+                        <TableCell className="font-medium">
+                          {profile.center_name === '내 센터' ? (
+                            <span className="text-muted-foreground italic">미등록</span>
+                          ) : (
+                            profile.center_name
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {profile.region ? (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {profile.region}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
                         <TableCell>{profile.email}</TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -299,13 +335,52 @@ const Admin = () => {
             </DialogHeader>
 
             <div className="space-y-4 py-4">
+              {/* 승인 대기 안내 */}
+              {selectedProfile && !selectedProfile.is_active && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-amber-800 dark:text-amber-200">
+                    <p className="font-medium">승인 대기 중인 업체입니다</p>
+                    <p className="text-xs mt-1">서비스 활성화를 위해 센터명과 지역을 입력해주세요.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* 유효성 검사 에러 */}
+              {validationError && (
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-destructive">{validationError}</p>
+                </div>
+              )}
+
               <div className="space-y-2">
-                <Label htmlFor="edit-center-name">센터명</Label>
+                <Label htmlFor="edit-center-name" className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  센터명 <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="edit-center-name"
                   value={editCenterName}
                   onChange={(e) => setEditCenterName(e.target.value)}
+                  placeholder="예: 행복한주야간보호센터"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-region" className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  지역 <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="edit-region"
+                  value={editRegion}
+                  onChange={(e) => setEditRegion(e.target.value)}
+                  placeholder="예: 성남 분당"
+                />
+                <p className="text-xs text-muted-foreground">
+                  AI 글 생성 시 지역명이 자동 반영됩니다
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -337,7 +412,7 @@ const Admin = () => {
               </div>
 
               <div className="flex items-center justify-between">
-                <Label htmlFor="edit-active">서비스 활성화</Label>
+                <Label htmlFor="edit-active">서비스 활성화 (승인)</Label>
                 <Switch
                   id="edit-active"
                   checked={editIsActive}

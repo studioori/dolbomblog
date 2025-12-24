@@ -6,6 +6,7 @@ interface Profile {
   id: string;
   email: string;
   center_name: string;
+  region: string;
   plan_tier: 'free' | 'basic' | 'premium';
   monthly_limit: number;
   current_usage: number;
@@ -24,7 +25,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, centerName: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   canGenerate: boolean;
@@ -130,7 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: error as Error | null };
   };
 
-  const signUp = async (email: string, password: string, centerName: string) => {
+  const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
@@ -138,9 +139,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: {
-          center_name: centerName,
-        },
       },
     });
     return { error: error as Error | null };

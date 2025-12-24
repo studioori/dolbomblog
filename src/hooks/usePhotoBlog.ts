@@ -86,7 +86,11 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
       }));
 
       const { data, error: fnError } = await supabase.functions.invoke('generate-blog-vision', {
-        body: { photos: photosData, centerName: profile.center_name },
+        body: { 
+          photos: photosData, 
+          centerName: profile.center_name,
+          region: profile.region || ''
+        },
       });
 
       if (fnError) {
