@@ -12,6 +12,7 @@ interface Profile {
   current_usage: number;
   is_active: boolean;
   created_at: string;
+  writing_tone_prompt: string | null;
 }
 
 interface UserRole {
