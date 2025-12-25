@@ -98,14 +98,14 @@ const Admin = () => {
 
       const adminUserIds = new Set(adminRoles?.map(r => r.user_id) || []);
 
-      const profilesWithRoles = (profilesData || []).map(profile => ({
-        ...profile,
-        isAdmin: adminUserIds.has(profile.id),
-      }));
+      // Filter out admin accounts - only show client companies
+      const clientProfiles = (profilesData || []).filter(
+        profile => !adminUserIds.has(profile.id)
+      );
 
-      setProfiles(profilesWithRoles);
+      setProfiles(clientProfiles);
 
-      // Calculate stats
+      // Calculate stats (excluding admins)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -115,9 +115,9 @@ const Admin = () => {
         .gte('created_at', today.toISOString());
 
       setStats({
-        totalUsers: profilesData?.length || 0,
+        totalUsers: clientProfiles.length,
         todayPosts: todayPostsCount || 0,
-        activeUsers: profilesData?.filter(p => p.is_active).length || 0,
+        activeUsers: clientProfiles.filter(p => p.is_active).length,
       });
     } catch (error) {
       console.error('Error fetching data:', error);
