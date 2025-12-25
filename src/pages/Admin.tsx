@@ -12,9 +12,10 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Users, FileText, Shield, ArrowLeft, Edit, Building2, MapPin, AlertCircle, Palette, Plus } from 'lucide-react';
+import { Loader2, Users, FileText, Shield, ArrowLeft, Edit, Building2, MapPin, AlertCircle, Palette, Plus, Crown } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
 
 interface Profile {
   id: string;
@@ -27,6 +28,7 @@ interface Profile {
   is_active: boolean;
   created_at: string;
   writing_tone_prompt: string | null;
+  isAdmin?: boolean;
 }
 
 interface Stats {
@@ -87,7 +89,21 @@ const Admin = () => {
         .order('created_at', { ascending: false });
 
       if (profilesError) throw profilesError;
-      setProfiles(profilesData || []);
+
+      // Fetch admin roles
+      const { data: adminRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+
+      const adminUserIds = new Set(adminRoles?.map(r => r.user_id) || []);
+
+      const profilesWithRoles = (profilesData || []).map(profile => ({
+        ...profile,
+        isAdmin: adminUserIds.has(profile.id),
+      }));
+
+      setProfiles(profilesWithRoles);
 
       // Calculate stats
       const today = new Date();
@@ -344,11 +360,21 @@ const Admin = () => {
                     profiles.map((profile) => (
                       <TableRow key={profile.id} className={!profile.is_active ? 'bg-muted/30' : ''}>
                         <TableCell className="font-medium">
-                          {profile.center_name === '내 센터' ? (
-                            <span className="text-muted-foreground italic">미등록</span>
-                          ) : (
-                            profile.center_name
-                          )}
+                          <div className="flex items-center gap-2">
+                            {profile.isAdmin ? (
+                              <>
+                                <span>{profile.center_name === '내 센터' ? '관리자 계정' : profile.center_name}</span>
+                                <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100 gap-1">
+                                  <Crown className="w-3 h-3" />
+                                  관리자
+                                </Badge>
+                              </>
+                            ) : profile.center_name === '내 센터' ? (
+                              <span className="text-muted-foreground italic">미등록</span>
+                            ) : (
+                              profile.center_name
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {profile.region ? (
