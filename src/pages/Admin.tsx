@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Users, FileText, Shield, ArrowLeft, Edit, Building2, MapPin, AlertCircle, Palette } from 'lucide-react';
+import { Loader2, Users, FileText, Shield, ArrowLeft, Edit, Building2, MapPin, AlertCircle, Palette, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -46,6 +46,15 @@ const Admin = () => {
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Create user modal state
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createEmail, setCreateEmail] = useState('');
+  const [createPassword, setCreatePassword] = useState('');
+  const [createCenterName, setCreateCenterName] = useState('');
+  const [createRegion, setCreateRegion] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // Edit form state
   const [editCenterName, setEditCenterName] = useState('');
@@ -169,6 +178,69 @@ const Admin = () => {
     }
   };
 
+  const openCreateDialog = () => {
+    setCreateEmail('');
+    setCreatePassword('');
+    setCreateCenterName('');
+    setCreateRegion('');
+    setCreateError(null);
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleCreateUser = async () => {
+    if (!createEmail || !createPassword || !createCenterName || !createRegion) {
+      setCreateError('모든 필드를 입력해주세요.');
+      return;
+    }
+
+    setCreateError(null);
+    setIsCreating(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setCreateError('로그인이 필요합니다.');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('admin-create-user', {
+        body: {
+          email: createEmail,
+          password: createPassword,
+          centerName: createCenterName,
+          region: createRegion,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
+      toast({
+        title: '등록 완료',
+        description: `${createCenterName} 업체가 성공적으로 등록되었습니다.`,
+      });
+
+      setIsCreateDialogOpen(false);
+      fetchData();
+    } catch (error) {
+      console.error('Error creating user:', error);
+      const errorMessage = error instanceof Error ? error.message : '업체 등록 중 오류가 발생했습니다.';
+      setCreateError(errorMessage);
+      toast({
+        title: '등록 실패',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -198,6 +270,10 @@ const Admin = () => {
               <p className="text-muted-foreground">업체 관리 및 서비스 현황</p>
             </div>
           </div>
+          <Button onClick={openCreateDialog} className="gap-2">
+            <Plus className="w-4 h-4" />
+            신규 업체 등록
+          </Button>
         </div>
 
         {/* Stats Cards */}
@@ -456,6 +532,91 @@ const Admin = () => {
                   </>
                 ) : (
                   '저장'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Create User Dialog */}
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>신규 업체 등록</DialogTitle>
+              <DialogDescription>
+                새로운 업체를 직접 등록합니다. 이메일 인증 없이 바로 이용 가능합니다.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              {createError && (
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-destructive">{createError}</p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="create-email">이메일 <span className="text-destructive">*</span></Label>
+                <Input
+                  id="create-email"
+                  type="email"
+                  value={createEmail}
+                  onChange={(e) => setCreateEmail(e.target.value)}
+                  placeholder="example@email.com"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="create-password">초기 비밀번호 <span className="text-destructive">*</span></Label>
+                <Input
+                  id="create-password"
+                  type="password"
+                  value={createPassword}
+                  onChange={(e) => setCreatePassword(e.target.value)}
+                  placeholder="최소 6자리"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="create-center-name" className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  센터명 <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="create-center-name"
+                  value={createCenterName}
+                  onChange={(e) => setCreateCenterName(e.target.value)}
+                  placeholder="예: 행복한주야간보호센터"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="create-region" className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  지역 <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="create-region"
+                  value={createRegion}
+                  onChange={(e) => setCreateRegion(e.target.value)}
+                  placeholder="예: 서울 강남"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                취소
+              </Button>
+              <Button onClick={handleCreateUser} disabled={isCreating}>
+                {isCreating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    등록 중...
+                  </>
+                ) : (
+                  '등록'
                 )}
               </Button>
             </DialogFooter>
