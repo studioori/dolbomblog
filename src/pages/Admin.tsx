@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Users, FileText, Shield, ArrowLeft, Edit, Building2, MapPin, AlertCircle } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, Users, FileText, Shield, ArrowLeft, Edit, Building2, MapPin, AlertCircle, Palette } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -25,6 +26,7 @@ interface Profile {
   current_usage: number;
   is_active: boolean;
   created_at: string;
+  writing_tone_prompt: string | null;
 }
 
 interface Stats {
@@ -51,6 +53,7 @@ const Admin = () => {
   const [editMonthlyLimit, setEditMonthlyLimit] = useState(10);
   const [editIsActive, setEditIsActive] = useState(false);
   const [editPlanTier, setEditPlanTier] = useState('free');
+  const [editWritingTonePrompt, setEditWritingTonePrompt] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -110,6 +113,7 @@ const Admin = () => {
     setEditMonthlyLimit(profile.monthly_limit);
     setEditIsActive(profile.is_active);
     setEditPlanTier(profile.plan_tier);
+    setEditWritingTonePrompt(profile.writing_tone_prompt || '');
     setValidationError(null);
     setIsDialogOpen(true);
   };
@@ -140,6 +144,7 @@ const Admin = () => {
           monthly_limit: editMonthlyLimit,
           is_active: editIsActive,
           plan_tier: editPlanTier,
+          writing_tone_prompt: editWritingTonePrompt || null,
         })
         .eq('id', selectedProfile.id);
 
@@ -418,6 +423,24 @@ const Admin = () => {
                   checked={editIsActive}
                   onCheckedChange={setEditIsActive}
                 />
+              </div>
+
+              <div className="space-y-2 pt-4 border-t">
+                <Label htmlFor="edit-writing-tone" className="flex items-center gap-2">
+                  <Palette className="w-4 h-4" />
+                  글 생성 스타일 설정
+                </Label>
+                <Textarea
+                  id="edit-writing-tone"
+                  value={editWritingTonePrompt}
+                  onChange={(e) => setEditWritingTonePrompt(e.target.value)}
+                  placeholder="예: 유치원 선생님처럼 아주 밝고 명랑한 톤으로 작성, 이모지 많이 사용..."
+                  rows={4}
+                  className="resize-none"
+                />
+                <p className="text-xs text-muted-foreground">
+                  이 센터의 블로그 글 말투, 분위기, 필수 포함 요소 등을 정의합니다. 비워두면 기본 스타일이 적용됩니다.
+                </p>
               </div>
             </div>
 

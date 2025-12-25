@@ -50,6 +50,7 @@ export type Database = {
           plan_tier: string
           region: string | null
           updated_at: string
+          writing_tone_prompt: string | null
         }
         Insert: {
           center_name?: string
@@ -62,6 +63,7 @@ export type Database = {
           plan_tier?: string
           region?: string | null
           updated_at?: string
+          writing_tone_prompt?: string | null
         }
         Update: {
           center_name?: string
@@ -74,6 +76,7 @@ export type Database = {
           plan_tier?: string
           region?: string | null
           updated_at?: string
+          writing_tone_prompt?: string | null
         }
         Relationships: []
       }

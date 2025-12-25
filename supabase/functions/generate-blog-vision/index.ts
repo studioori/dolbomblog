@@ -5,8 +5,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Default Tone & Manner (used when no custom style is set)
+const DEFAULT_TONE_MANNER = `부드럽고 공손한 '해요체'를 사용하세요. 문단은 3~4줄로 짧게 끊고, 따뜻한 이모지(😊, 🌞, 🌸 등)를 적절히 사용하세요.`;
+
 // Dynamic System Instruction Template
-const getSystemInstruction = (region: string, centerName: string) => `# Role Definition
+const getSystemInstruction = (region: string, centerName: string, customTonePrompt?: string | null) => `# Role Definition
 
 당신은 '${region}'에 위치한 '${centerName}'의 전문적이고 따뜻한 사회복지사입니다.
 글을 작성할 때 다음 지침을 엄격히 따르세요:
@@ -73,8 +76,7 @@ const getSystemInstruction = (region: string, centerName: string) => `# Role Def
 
 ## 6. Tone & Manner
 
-- 부드럽고 공손한 '해요체'를 사용하세요.
-- 문단은 3~4줄로 짧게 끊고, 따뜻한 이모지(😊, 🌞, 🌸 등)를 적절히 사용하세요.
+${customTonePrompt ? customTonePrompt : DEFAULT_TONE_MANNER}
 
 # Few-shot Example
 
@@ -127,7 +129,7 @@ serve(async (req) => {
   }
 
   try {
-    const { photos, centerName, region } = await req.json();
+    const { photos, centerName, region, writingTonePrompt } = await req.json();
     
     if (!photos || !Array.isArray(photos) || photos.length === 0) {
       throw new Error("사진 데이터가 필요합니다.");
@@ -142,10 +144,10 @@ serve(async (req) => {
     const dynamicCenterName = centerName || "늘봄주야간보호센터";
     const dynamicRegion = region || "";
     
-    // Generate dynamic system instruction
-    const systemInstruction = getSystemInstruction(dynamicRegion, dynamicCenterName);
+    // Generate dynamic system instruction with custom tone if available
+    const systemInstruction = getSystemInstruction(dynamicRegion, dynamicCenterName, writingTonePrompt);
 
-    console.log(`Generating blog for center: ${dynamicCenterName}, region: ${dynamicRegion}`);
+    console.log(`Generating blog for center: ${dynamicCenterName}, region: ${dynamicRegion}, customTone: ${writingTonePrompt ? 'yes' : 'default'}`);
 
     // Build multimodal message content
     const userContent: any[] = [
