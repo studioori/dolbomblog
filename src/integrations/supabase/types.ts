@@ -46,6 +46,7 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean
+          max_image_count: number
           monthly_limit: number
           plan_tier: string
           region: string | null
@@ -59,6 +60,7 @@ export type Database = {
           email?: string | null
           id: string
           is_active?: boolean
+          max_image_count?: number
           monthly_limit?: number
           plan_tier?: string
           region?: string | null
@@ -72,6 +74,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          max_image_count?: number
           monthly_limit?: number
           plan_tier?: string
           region?: string | null

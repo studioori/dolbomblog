@@ -13,6 +13,7 @@ interface Profile {
   is_active: boolean;
   created_at: string;
   writing_tone_prompt: string | null;
+  max_image_count: number;
 }
 
 interface UserRole {
@@ -153,7 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAdmin(false);
   };
 
-  const canGenerate = profile ? profile.is_active && profile.current_usage < profile.monthly_limit : false;
+  const canGenerate = profile ? (isAdmin || (profile.is_active && profile.current_usage < profile.monthly_limit)) : false;
 
   return (
     <AuthContext.Provider

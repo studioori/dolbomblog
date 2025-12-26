@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Users, FileText, Shield, ArrowLeft, Edit, Building2, MapPin, AlertCircle, Palette, Plus, Crown } from 'lucide-react';
+import { Loader2, Users, FileText, Shield, ArrowLeft, Edit, Building2, MapPin, AlertCircle, Palette, Plus, Crown, ImagePlus, ShieldCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,7 @@ interface Profile {
   is_active: boolean;
   created_at: string;
   writing_tone_prompt: string | null;
+  max_image_count: number;
   isAdmin?: boolean;
 }
 
@@ -65,6 +66,9 @@ const Admin = () => {
   const [editIsActive, setEditIsActive] = useState(false);
   const [editPlanTier, setEditPlanTier] = useState('free');
   const [editWritingTonePrompt, setEditWritingTonePrompt] = useState('');
+  const [editMaxImageCount, setEditMaxImageCount] = useState(5);
+  const [editIsAdminRole, setEditIsAdminRole] = useState(false);
+  const [showAdminWarning, setShowAdminWarning] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -131,7 +135,7 @@ const Admin = () => {
     }
   };
 
-  const openEditDialog = (profile: Profile) => {
+  const openEditDialog = async (profile: Profile) => {
     setSelectedProfile(profile);
     setEditCenterName(profile.center_name);
     setEditRegion(profile.region || '');
@@ -139,7 +143,18 @@ const Admin = () => {
     setEditIsActive(profile.is_active);
     setEditPlanTier(profile.plan_tier);
     setEditWritingTonePrompt(profile.writing_tone_prompt || '');
+    setEditMaxImageCount(profile.max_image_count || 5);
     setValidationError(null);
+    setShowAdminWarning(false);
+
+    // Check if this user has admin role
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', profile.id)
+      .maybeSingle();
+    
+    setEditIsAdminRole(roleData?.role === 'admin');
     setIsDialogOpen(true);
   };
 
@@ -161,7 +176,8 @@ const Admin = () => {
     setValidationError(null);
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      // Update profile
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({
           center_name: editCenterName,
@@ -170,10 +186,28 @@ const Admin = () => {
           is_active: editIsActive,
           plan_tier: editPlanTier,
           writing_tone_prompt: editWritingTonePrompt || null,
+          max_image_count: editMaxImageCount,
         })
         .eq('id', selectedProfile.id);
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // Update role if changed
+      const { data: currentRole } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', selectedProfile.id)
+        .maybeSingle();
+
+      const wasAdmin = currentRole?.role === 'admin';
+      if (wasAdmin !== editIsAdminRole) {
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .update({ role: editIsAdminRole ? 'admin' : 'user' })
+          .eq('user_id', selectedProfile.id);
+
+        if (roleError) throw roleError;
+      }
 
       toast({
         title: '저장 완료',
@@ -518,6 +552,24 @@ const Admin = () => {
                 </p>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="edit-max-images" className="flex items-center gap-2">
+                  <ImagePlus className="w-4 h-4" />
+                  최대 이미지 업로드 수
+                </Label>
+                <Input
+                  id="edit-max-images"
+                  type="number"
+                  value={editMaxImageCount}
+                  onChange={(e) => setEditMaxImageCount(parseInt(e.target.value) || 5)}
+                  min={1}
+                  max={20}
+                />
+                <p className="text-xs text-muted-foreground">
+                  한 번에 업로드 가능한 사진 개수 (기본: 5장)
+                </p>
+              </div>
+
               <div className="flex items-center justify-between">
                 <Label htmlFor="edit-active">서비스 활성화 (승인)</Label>
                 <Switch
@@ -543,6 +595,65 @@ const Admin = () => {
                 <p className="text-xs text-muted-foreground">
                   이 센터의 블로그 글 말투, 분위기, 필수 포함 요소 등을 정의합니다. 비워두면 기본 스타일이 적용됩니다.
                 </p>
+              </div>
+
+              {/* Admin Role Section */}
+              <div className="space-y-3 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="edit-admin-role" className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-purple-600" />
+                    관리자(Admin) 권한 부여
+                  </Label>
+                  <Switch
+                    id="edit-admin-role"
+                    checked={editIsAdminRole}
+                    onCheckedChange={(checked) => {
+                      if (checked && !showAdminWarning) {
+                        setShowAdminWarning(true);
+                      } else {
+                        setEditIsAdminRole(checked);
+                        if (!checked) setShowAdminWarning(false);
+                      }
+                    }}
+                  />
+                </div>
+
+                {showAdminWarning && !editIsAdminRole && (
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 space-y-2">
+                    <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+                      ⚠️ 이 사용자에게 시스템 전체 접근 권한을 부여하시겠습니까?
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      관리자는 모든 업체 정보를 조회/수정하고, 다른 사용자에게 권한을 부여할 수 있습니다.
+                    </p>
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAdminWarning(false)}
+                      >
+                        취소
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="bg-purple-600 hover:bg-purple-700"
+                        onClick={() => {
+                          setEditIsAdminRole(true);
+                          setShowAdminWarning(false);
+                        }}
+                      >
+                        권한 부여
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {editIsAdminRole && (
+                  <p className="text-xs text-purple-600 dark:text-purple-400">
+                    ✓ 이 사용자는 관리자 권한을 가집니다
+                  </p>
+                )}
               </div>
             </div>
 
