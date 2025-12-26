@@ -370,8 +370,11 @@ const Admin = () => {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-600 dark:text-slate-400" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">데이터를 불러오는 중...</p>
+        </div>
       </div>
     );
   }
@@ -381,7 +384,7 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950">
+    <div className="min-h-screen bg-gradient-to-b from-background via-accent/20 to-background">
       <AdminHeader />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
@@ -396,14 +399,20 @@ const Admin = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-700">
+          <TabsList className="bg-card border border-border/50 shadow-soft p-1 gap-1">
+            <TabsTrigger 
+              value="overview" 
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-soft transition-all duration-300"
+            >
               📊 활동 모니터링
             </TabsTrigger>
-            <TabsTrigger value="companies" className="data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-700">
+            <TabsTrigger 
+              value="companies" 
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-soft transition-all duration-300"
+            >
               🏢 업체 관리
               {stats.pendingApproval > 0 && (
-                <Badge variant="destructive" className="ml-2 px-1.5 py-0.5 text-xs">
+                <Badge variant="destructive" className="ml-2 px-1.5 py-0.5 text-xs animate-pulse-soft">
                   {stats.pendingApproval}
                 </Badge>
               )}
@@ -411,23 +420,24 @@ const Admin = () => {
           </TabsList>
 
           {/* Overview Tab - Activity Feed */}
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-6 animate-fade-in">
             <GlobalActivityFeed />
           </TabsContent>
 
           {/* Companies Tab */}
-          <TabsContent value="companies" className="space-y-6">
+          <TabsContent value="companies" className="space-y-6 animate-fade-in">
             {/* Pending Approvals Section */}
             {pendingProfiles.length > 0 && (
-              <Card className="bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-600">
-                <CardHeader className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-700">
+              <Card className="relative overflow-hidden bg-card border-secondary/40 shadow-soft">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-gold" />
+                <CardHeader className="bg-secondary/5 border-b border-secondary/20">
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-amber-800 dark:text-amber-200 flex items-center gap-2">
+                      <CardTitle className="text-secondary flex items-center gap-2">
                         <AlertCircle className="w-5 h-5" />
                         승인 대기 중인 업체 ({pendingProfiles.length})
                       </CardTitle>
-                      <CardDescription className="text-amber-700/70 dark:text-amber-300/70">
+                      <CardDescription className="text-secondary/70">
                         아래 업체들의 정보를 확인하고 승인해주세요
                       </CardDescription>
                     </div>
@@ -436,36 +446,36 @@ const Admin = () => {
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-slate-50 dark:bg-slate-800/50">
-                        <TableHead className="text-slate-600 dark:text-slate-300">센터명</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300">지역</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300">이메일</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300">가입일</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300 text-right">관리</TableHead>
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="text-muted-foreground font-semibold">센터명</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">지역</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">이메일</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">가입일</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold text-right">관리</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {pendingProfiles.map((profile) => (
-                        <TableRow key={profile.id} className="bg-amber-50/50 dark:bg-amber-900/10">
+                        <TableRow key={profile.id} className="bg-secondary/5 hover:bg-secondary/10 transition-colors">
                           <TableCell className="font-medium">
                             {profile.center_name === '내 센터' ? (
-                              <span className="text-amber-600 dark:text-amber-400 italic">미등록</span>
+                              <span className="text-secondary italic">미등록</span>
                             ) : (
                               profile.center_name
                             )}
                           </TableCell>
                           <TableCell>
                             {profile.region ? (
-                              <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
+                              <span className="flex items-center gap-1 text-foreground/80">
                                 <MapPin className="w-3 h-3" />
                                 {profile.region}
                               </span>
                             ) : (
-                              <span className="text-slate-400">-</span>
+                              <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-slate-600 dark:text-slate-300">{profile.email}</TableCell>
-                          <TableCell className="text-slate-500 dark:text-slate-400">
+                          <TableCell className="text-foreground/80">{profile.email}</TableCell>
+                          <TableCell className="text-muted-foreground">
                             {format(new Date(profile.created_at), 'yyyy.MM.dd', { locale: ko })}
                           </TableCell>
                           <TableCell className="text-right">
@@ -473,7 +483,7 @@ const Admin = () => {
                               variant="default"
                               size="sm"
                               onClick={() => openEditDialog(profile)}
-                              className="bg-amber-600 hover:bg-amber-700 text-white"
+                              className="bg-secondary hover:bg-secondary/90 text-secondary-foreground shadow-soft hover:shadow-card transition-all duration-300"
                             >
                               승인하기
                             </Button>
@@ -487,43 +497,50 @@ const Admin = () => {
             )}
 
             {/* Active Companies Section */}
-            <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
-              <CardHeader>
+            <Card className="relative overflow-hidden bg-card border-border/50 shadow-soft">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-forest" />
+              <CardHeader className="border-b border-border/30">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                      <Building2 className="w-5 h-5" />
+                    <CardTitle className="text-foreground flex items-center gap-2">
+                      <Building2 className="w-5 h-5 text-primary" />
                       업체 목록
                     </CardTitle>
-                    <CardDescription className="text-slate-500 dark:text-slate-400">
+                    <CardDescription className="text-muted-foreground">
                       가입한 모든 업체를 관리합니다
                     </CardDescription>
                   </div>
-                  <Button onClick={openCreateDialog} className="gap-2 bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500">
+                  <Button 
+                    onClick={openCreateDialog} 
+                    className="gap-2 bg-gradient-forest hover:opacity-90 text-white shadow-soft hover:shadow-card transition-all duration-300"
+                  >
                     <Plus className="w-4 h-4" />
                     신규 업체 등록
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <CardContent className="p-0">
+                <div className="overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-slate-50 dark:bg-slate-800/50">
-                        <TableHead className="text-slate-600 dark:text-slate-300">센터명</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300">지역</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300">사용률</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300">최근 접속</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300">누적 생성</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300">상태</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300 text-right">관리</TableHead>
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="text-muted-foreground font-semibold">센터명</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">지역</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">사용률</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">최근 접속</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">누적 생성</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">상태</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold text-right">관리</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {profiles.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-slate-500 dark:text-slate-400">
-                            가입된 업체가 없습니다
+                          <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                            <div className="flex flex-col items-center gap-2">
+                              <Users className="w-8 h-8 text-muted-foreground/50" />
+                              가입된 업체가 없습니다
+                            </div>
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -532,31 +549,34 @@ const Admin = () => {
                             ? Math.round((profile.current_usage / profile.monthly_limit) * 100) 
                             : 0;
                           const utilizationColor = utilization >= 100 
-                            ? 'bg-red-500' 
+                            ? 'bg-destructive' 
                             : utilization >= 70 
                             ? 'bg-emerald-500' 
-                            : 'bg-slate-300 dark:bg-slate-600';
+                            : 'bg-muted-foreground/30';
                           
                           return (
-                            <TableRow key={profile.id} className={!profile.is_active ? 'bg-slate-50 dark:bg-slate-800/30' : ''}>
-                              <TableCell className="font-medium text-slate-800 dark:text-slate-100">
+                            <TableRow 
+                              key={profile.id} 
+                              className={`hover:bg-muted/30 transition-colors ${!profile.is_active ? 'bg-muted/20' : ''}`}
+                            >
+                              <TableCell className="font-medium text-foreground">
                                 <div>
                                   {profile.center_name === '내 센터' ? (
-                                    <span className="text-slate-400 italic">미등록</span>
+                                    <span className="text-muted-foreground italic">미등록</span>
                                   ) : (
                                     profile.center_name
                                   )}
-                                  <p className="text-xs text-slate-500">{profile.email}</p>
+                                  <p className="text-xs text-muted-foreground">{profile.email}</p>
                                 </div>
                               </TableCell>
                               <TableCell>
                                 {profile.region ? (
-                                  <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
-                                    <MapPin className="w-3 h-3" />
+                                  <span className="flex items-center gap-1 text-foreground/80">
+                                    <MapPin className="w-3 h-3 text-primary/60" />
                                     {profile.region}
                                   </span>
                                 ) : (
-                                  <span className="text-slate-400">-</span>
+                                  <span className="text-muted-foreground">-</span>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -564,45 +584,47 @@ const Admin = () => {
                                   <div className="flex items-center gap-2">
                                     <Progress value={utilization} className={`w-16 h-2 [&>div]:${utilizationColor}`} />
                                     <span className={`text-sm font-medium ${
-                                      utilization >= 100 ? 'text-red-600 dark:text-red-400' 
+                                      utilization >= 100 ? 'text-destructive' 
                                       : utilization >= 70 ? 'text-emerald-600 dark:text-emerald-400' 
-                                      : 'text-slate-500'
+                                      : 'text-muted-foreground'
                                     }`}>
                                       {utilization}%
                                     </span>
                                   </div>
-                                  <p className="text-xs text-slate-500">
+                                  <p className="text-xs text-muted-foreground">
                                     ({profile.current_usage}/{profile.monthly_limit})
                                   </p>
                                 </div>
                               </TableCell>
                               <TableCell>
                                 {profile.lastActive ? (
-                                  <div className="flex items-center gap-1 text-sm text-slate-600 dark:text-slate-300">
-                                    <Clock className="w-3 h-3" />
+                                  <div className="flex items-center gap-1 text-sm text-foreground/80">
+                                    <Clock className="w-3 h-3 text-primary/60" />
                                     {formatDistanceToNow(profile.lastActive, { addSuffix: true, locale: ko })}
                                   </div>
                                 ) : (
-                                  <span className="text-slate-400 text-sm">기록 없음</span>
+                                  <span className="text-muted-foreground text-sm">기록 없음</span>
                                 )}
                               </TableCell>
                               <TableCell>
-                                <span className="text-slate-600 dark:text-slate-300 font-medium">
+                                <span className="text-foreground font-medium">
                                   {profile.totalPosts || 0}개
                                 </span>
                               </TableCell>
                               <TableCell>
-                                <Badge variant={profile.is_active ? 'default' : 'secondary'} className={`
-                                  ${profile.is_active 
-                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                                    : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                                  }
-                                `}>
+                                <Badge 
+                                  variant={profile.is_active ? 'default' : 'secondary'} 
+                                  className={`${
+                                    profile.is_active 
+                                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                      : 'bg-muted text-muted-foreground'
+                                  }`}
+                                >
                                   {profile.is_active ? '활성' : '비활성'}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-1">
+                                <div className="flex items-center justify-end gap-0.5">
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -610,7 +632,7 @@ const Admin = () => {
                                       setUsageModalProfile(profile);
                                       setUsageModalOpen(true);
                                     }}
-                                    className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                    className="w-8 h-8 p-0 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
                                     title="이용 통계"
                                   >
                                     <BarChart3 className="w-4 h-4" />
@@ -622,7 +644,7 @@ const Admin = () => {
                                       setStyleModalProfile(profile);
                                       setStyleModalOpen(true);
                                     }}
-                                    className="text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                                    className="w-8 h-8 p-0 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-all"
                                     title="스타일 설정"
                                   >
                                     <Palette className="w-4 h-4" />
@@ -631,7 +653,7 @@ const Admin = () => {
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => openEditDialog(profile)}
-                                    className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                    className="w-8 h-8 p-0 text-primary hover:bg-primary/10 rounded-lg transition-all"
                                     title="정보 수정"
                                   >
                                     <Edit className="w-4 h-4" />
@@ -643,7 +665,7 @@ const Admin = () => {
                                       setUserToDelete(profile);
                                       setDeleteConfirmOpen(true);
                                     }}
-                                    className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    className="w-8 h-8 p-0 text-destructive hover:bg-destructive/10 rounded-lg transition-all"
                                     title="삭제"
                                   >
                                     <Trash2 className="w-4 h-4" />
