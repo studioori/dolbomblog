@@ -5,91 +5,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Style config interface
+// Simplified Style config interface
 interface StyleConfig {
-  tone: 'warm' | 'energetic' | 'professional';
-  emojiFrequency: 'minimal' | 'moderate' | 'plentiful';
-  requiredKeywords: string[];
-  forbiddenWords: string[];
-  customPrompt: string;
-  // New advanced settings
   styleReferenceText?: string;
-  introGreeting?: string;
-  outroSignature?: string;
-  sentenceLength?: 'short' | 'long';
+  customPrompt?: string;
 }
 
-// Build tone instruction based on style config
-const buildToneInstruction = (styleConfig: StyleConfig | null, fallbackPrompt?: string | null): string => {
-  if (!styleConfig) {
-    return fallbackPrompt || `부드럽고 공손한 '해요체'를 사용하세요. 문단은 3~4줄로 짧게 끊고, 따뜻한 이모지(😊, 🌞, 🌸 등)를 적절히 사용하세요.`;
-  }
-
-  const instructions: string[] = [];
-
-  // Tone instructions
-  switch (styleConfig.tone) {
-    case 'energetic':
-      instructions.push(`활기차고 에너지 넘치는 톤으로 작성하세요. 문장 끝에 느낌표(!)를 적극 사용하고, '으랏차차', '파이팅', '화이팅' 같은 활기찬 추임새를 자연스럽게 넣으세요.`);
-      break;
-    case 'professional':
-      instructions.push(`전문적이고 신뢰감 있는 톤으로 작성하세요. '~합니다', '~습니다' 같은 격식체를 사용하고, 활동의 전문적 효과와 의미를 강조하세요.`);
-      break;
-    case 'warm':
-    default:
-      instructions.push(`부드럽고 공손한 '해요체'를 사용하세요. 차분하면서도 따뜻한 느낌으로 작성하세요.`);
-      break;
-  }
-
-  // Sentence length instructions
-  if (styleConfig.sentenceLength === 'long') {
-    instructions.push(`문장은 길고 서술적으로 작성하세요. 상황과 감정을 풍부하게 묘사하며, 여러 절을 연결한 유려한 문체를 사용하세요.`);
-  } else {
-    instructions.push(`문장은 짧고 간결하게 작성하세요. 한 문장에 하나의 생각만 담아 읽기 쉽게 구성하세요.`);
-  }
-
-  // Emoji frequency instructions
-  switch (styleConfig.emojiFrequency) {
-    case 'minimal':
-      instructions.push(`이모지는 제목과 마지막 인사에만 각각 1개씩 사용하고 본문에는 절대 쓰지 마세요.`);
-      break;
-    case 'plentiful':
-      instructions.push(`이모지를 풍부하게 사용하세요. 각 문단에 1-2개씩 자연스럽게 배치하여 글에 생동감을 주세요. 😊✨🌸🌿 등 다양한 이모지를 활용하세요.`);
-      break;
-    case 'moderate':
-    default:
-      instructions.push(`이모지는 문단 끝이나 자연스러운 호흡 위치에 적당히 배치하세요. 과하지 않게 2-3개 정도 사용하세요.`);
-      break;
-  }
-
-  // Required keywords
-  if (styleConfig.requiredKeywords && styleConfig.requiredKeywords.length > 0) {
-    instructions.push(`글 작성 시 다음 키워드/표현을 자연스럽게 녹여내세요: ${styleConfig.requiredKeywords.join(', ')}`);
-  }
-
-  // Forbidden words
-  if (styleConfig.forbiddenWords && styleConfig.forbiddenWords.length > 0) {
-    instructions.push(`⚠️ 다음 단어/표현은 절대 사용하지 마세요 (금지어): ${styleConfig.forbiddenWords.join(', ')}`);
-  }
-
-  // Custom prompt
-  if (styleConfig.customPrompt && styleConfig.customPrompt.trim()) {
-    instructions.push(`\n추가 지침:\n${styleConfig.customPrompt}`);
-  }
-
-  return instructions.join('\n\n');
-};
-
-// Build style mimicry instruction from reference text
-const buildStyleMimicryInstruction = (styleConfig: StyleConfig | null): string => {
-  if (!styleConfig?.styleReferenceText?.trim()) {
-    return '';
-  }
-
-  return `
+// Dynamic System Instruction Template
+const getSystemInstruction = (region: string, centerName: string, styleConfig: StyleConfig | null, fallbackTonePrompt?: string | null) => {
+  const hasStyleReference = styleConfig?.styleReferenceText?.trim();
+  const hasCustomPrompt = styleConfig?.customPrompt?.trim() || fallbackTonePrompt?.trim();
+  
+  // Build Style Mimicry section if reference text exists
+  const styleMimicrySection = hasStyleReference ? `
 # 🎯 Style Mimicry (최우선 적용)
 
-아래 [Reference Text]를 깊이 분석하세요.
+아래 [Reference Text]를 깊이 분석하세요:
 - 글의 분위기와 감성
 - 자주 사용하는 어미 (예: ~했답니다 vs ~했습니다 vs ~했어요)
 - 문단의 길이와 줄바꿈 패턴
@@ -100,45 +31,21 @@ const buildStyleMimicryInstruction = (styleConfig: StyleConfig | null): string =
 
 ---
 [Reference Text]
-${styleConfig.styleReferenceText}
+${styleConfig?.styleReferenceText}
 ---
 
-⚠️ 중요: 위 예시 글의 문체를 완벽하게 모방하세요. 이 지침은 다른 톤앤매너 설정보다 우선합니다.
-`;
-};
+⚠️ 중요: 위 예시 글의 문체를 완벽하게 모방하세요.
+` : '';
 
-// Build structure enforcement instruction
-const buildStructureInstruction = (styleConfig: StyleConfig | null): string => {
-  const parts: string[] = [];
+  // Build User Instructions section
+  const userInstructionsSection = hasCustomPrompt ? `
+# ✍️ User Instructions (관리자 지시사항)
 
-  if (styleConfig?.introGreeting?.trim()) {
-    parts.push(`📌 **고정 도입부:** 글의 맨 앞에 반드시 다음 문구를 그대로 출력하세요:\n"${styleConfig.introGreeting}"`);
-  }
+다음 지침을 엄격히 따르세요:
 
-  if (styleConfig?.outroSignature?.trim()) {
-    parts.push(`📌 **고정 맺음말:** 글의 맨 마지막(해시태그 바로 전)에 반드시 다음 문구를 그대로 출력하세요:\n"${styleConfig.outroSignature}"`);
-  }
+${styleConfig?.customPrompt || fallbackTonePrompt}
+` : '';
 
-  if (parts.length === 0) {
-    return '';
-  }
-
-  return `
-# 📏 Structure Enforcement (구조 고정)
-
-${parts.join('\n\n')}
-`;
-};
-
-// Dynamic System Instruction Template
-const getSystemInstruction = (region: string, centerName: string, styleConfig: StyleConfig | null, fallbackTonePrompt?: string | null) => {
-  const styleMimicryInstruction = buildStyleMimicryInstruction(styleConfig);
-  const structureInstruction = buildStructureInstruction(styleConfig);
-  const toneInstruction = buildToneInstruction(styleConfig, fallbackTonePrompt);
-  
-  // If style reference text exists, it takes priority
-  const hasStyleReference = styleConfig?.styleReferenceText?.trim();
-  
   return `# Role Definition
 
 당신은 '${region}'에 위치한 '${centerName}'의 전문적이고 따뜻한 사회복지사입니다.
@@ -149,8 +56,8 @@ const getSystemInstruction = (region: string, centerName: string, styleConfig: S
    - 예시: "이곳 ${region}에도 따스한 봄바람이 불어옵니다."
 3. **Hashtags:** 해시태그 생성 시 지역명과 센터명을 반드시 포함하세요.
    - 필수 태그: #${region.replace(/\s/g, '')}주야간보호 #${centerName.replace(/\s/g, '')} #${region.replace(/\s/g, '')}노인돌봄
-${styleMimicryInstruction}
-${structureInstruction}
+${styleMimicrySection}
+${userInstructionsSection}
 
 # 🚫 CRITICAL: 절대 금지 표현 (Negative Constraints)
 
@@ -206,9 +113,10 @@ ${structureInstruction}
 2. 해당 활동의 전문적 기대효과(치매 예방, 소근육 발달 등)
 를 자연스럽게 엮어서 서술하세요.
 
-## 6. Tone & Manner
-${hasStyleReference ? '\n(⚠️ 예시 글이 설정되어 있으므로 아래 톤 지침보다 예시 글의 문체를 우선합니다)\n' : ''}
-${toneInstruction}
+## 6. 기본 톤앤매너
+${hasStyleReference ? '\n(⚠️ 예시 글이 설정되어 있으므로 예시 글의 문체를 우선합니다)\n' : `
+부드럽고 공손한 '해요체'를 사용하세요. 문단은 3~4줄로 짧게 끊고, 따뜻한 이모지(😊, 🌞, 🌸 등)를 적절히 사용하세요.
+`}
 
 # Few-shot Example
 
@@ -287,10 +195,10 @@ serve(async (req) => {
       }
     }
     
-    // Generate dynamic system instruction with style config
+    // Generate dynamic system instruction with simplified style config
     const systemInstruction = getSystemInstruction(dynamicRegion, dynamicCenterName, parsedStyleConfig, writingTonePrompt);
 
-    console.log(`Generating blog for center: ${dynamicCenterName}, region: ${dynamicRegion}, styleConfig: ${parsedStyleConfig ? 'yes' : 'no'}, hasReferenceText: ${parsedStyleConfig?.styleReferenceText ? 'yes' : 'no'}`);
+    console.log(`Generating blog for center: ${dynamicCenterName}, region: ${dynamicRegion}, hasReferenceText: ${parsedStyleConfig?.styleReferenceText ? 'yes' : 'no'}, hasCustomPrompt: ${parsedStyleConfig?.customPrompt ? 'yes' : 'no'}`);
 
     // Build multimodal message content
     const userContent: any[] = [

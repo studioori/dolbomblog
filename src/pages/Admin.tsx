@@ -991,7 +991,7 @@ const Admin = () => {
           isOpen={styleModalOpen}
           onClose={() => setStyleModalOpen(false)}
           centerName={styleModalProfile.center_name}
-          initialConfig={styleModalProfile.style_config || { tone: 'warm', emojiFrequency: 'moderate', requiredKeywords: [], forbiddenWords: [], customPrompt: '' }}
+          initialConfig={styleModalProfile.style_config ? { styleReferenceText: (styleModalProfile.style_config as any).styleReferenceText || '', customPrompt: (styleModalProfile.style_config as any).customPrompt || '' } : { styleReferenceText: '', customPrompt: '' }}
           onSave={async (config) => {
             await supabase.from('profiles').update({ style_config: config as any }).eq('id', styleModalProfile.id);
             fetchData();
