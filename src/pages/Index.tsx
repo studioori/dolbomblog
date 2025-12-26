@@ -157,7 +157,7 @@ const Index = () => {
               photos={photos}
               onPhotosChange={setPhotos}
               isLoading={isLoading}
-              maxPhotos={profile?.max_image_count || 5}
+              maxPhotos={simulationProfile?.max_image_count ?? profile?.max_image_count ?? 5}
             />
 
             {/* 에러 메시지 */}
