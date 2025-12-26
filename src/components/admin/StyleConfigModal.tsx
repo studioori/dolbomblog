@@ -96,7 +96,7 @@ const StyleConfigModal = ({ isOpen, onClose, centerName, initialConfig, onSave }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl h-[90vh] w-[calc(100vw-2rem)] sm:w-full flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Palette className="w-5 h-5 text-purple-600" />
@@ -366,7 +366,7 @@ const StyleConfigModal = ({ isOpen, onClose, centerName, initialConfig, onSave }
           </div>
         </ScrollArea>
 
-        <DialogFooter className="pt-4 border-t">
+        <DialogFooter className="pt-4 border-t flex-shrink-0">
           <Button variant="outline" onClick={onClose}>
             취소
           </Button>
