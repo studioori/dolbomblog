@@ -1,4 +1,4 @@
-import { Shield, LogOut, User, Home } from 'lucide-react';
+import { Shield, LogOut, User, Home, Sparkles } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -22,18 +22,25 @@ const AdminHeader = () => {
   };
 
   return (
-    <header className="w-full py-4 px-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 sticky top-0 z-50">
+    <header className="w-full py-4 px-6 border-b border-border/50 bg-gradient-to-r from-card via-background to-card sticky top-0 z-50 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <Link to="/admin" className="flex items-center gap-3 group cursor-pointer">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-600 dark:to-slate-800 flex items-center justify-center shadow-lg transition-all duration-300 group-hover:shadow-xl group-hover:scale-105">
-            <Shield className="w-5 h-5 text-white transition-transform duration-300 group-hover:scale-110" />
+        <Link to="/admin" className="flex items-center gap-4 group cursor-pointer">
+          {/* Premium Logo */}
+          <div className="relative">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-forest flex items-center justify-center shadow-elevated transition-all duration-500 group-hover:shadow-glow group-hover:scale-105">
+              <Shield className="w-6 h-6 text-white transition-transform duration-300 group-hover:scale-110" />
+            </div>
+            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-secondary flex items-center justify-center shadow-soft animate-pulse-soft">
+              <Sparkles className="w-2.5 h-2.5 text-secondary-foreground" />
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">
-              🛡️ 서비스 통합 관리자
+          
+          <div className="space-y-0.5">
+            <h1 className="text-xl font-bold text-foreground tracking-tight flex items-center gap-2">
+              <span className="text-gradient-forest">통합 관리 센터</span>
             </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              돌봄 블로그 생성기 관제 센터
+            <p className="text-xs text-muted-foreground font-medium">
+              돌봄 블로그 생성기 · 서비스 관제
             </p>
           </div>
         </Link>
@@ -43,7 +50,7 @@ const AdminHeader = () => {
             variant="outline"
             size="sm"
             onClick={() => navigate('/')}
-            className="hidden sm:flex border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="hidden sm:flex border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 transition-all duration-300 shadow-soft hover:shadow-card"
           >
             <Home className="w-4 h-4 mr-2" />
             글쓰기 도구
@@ -54,19 +61,26 @@ const AdminHeader = () => {
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full bg-slate-200 dark:bg-slate-700">
-                  <User className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 border border-border/50 hover:border-primary/30 hover:shadow-card transition-all duration-300"
+                >
+                  <User className="w-4 h-4 text-primary" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{profile?.center_name}</span>
+              <DropdownMenuContent align="end" className="w-56 bg-card border-border/50 shadow-elevated">
+                <DropdownMenuLabel className="py-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="font-semibold text-foreground">{profile?.center_name}</span>
                     <span className="text-xs text-muted-foreground">{user.email}</span>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
+                <DropdownMenuSeparator className="bg-border/50" />
+                <DropdownMenuItem 
+                  onClick={handleSignOut}
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                >
                   <LogOut className="w-4 h-4 mr-2" />
                   로그아웃
                 </DropdownMenuItem>
