@@ -96,10 +96,17 @@ const Admin = () => {
   const [usageModalProfile, setUsageModalProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
-    if (!authLoading && (!user || !isAdmin)) {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    } else if (!authLoading && user && !isAdmin) {
+      toast({
+        title: '접근 권한 없음',
+        description: '관리자만 접근할 수 있는 페이지입니다.',
+        variant: 'destructive',
+      });
       navigate('/');
     }
-  }, [user, isAdmin, authLoading, navigate]);
+  }, [user, isAdmin, authLoading, navigate, toast]);
 
   useEffect(() => {
     if (isAdmin) {
