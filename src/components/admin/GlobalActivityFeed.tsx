@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Eye, FileText, MapPin, X } from 'lucide-react';
+import { Loader2, Eye, FileText, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -243,14 +243,6 @@ const GlobalActivityFeed = () => {
                   </span>
                 )}
               </DialogTitle>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsModalOpen(false)}
-                className="w-8 h-8 rounded-full hover:bg-muted"
-              >
-                <X className="w-4 h-4" />
-              </Button>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
               {selectedPost && format(new Date(selectedPost.created_at), 'yyyy년 M월 d일 HH:mm', { locale: ko })}
