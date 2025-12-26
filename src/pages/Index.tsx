@@ -146,12 +146,6 @@ const Index = () => {
                 활동 사진을 업로드하고 키워드를 입력하면,<br className="hidden sm:block"/>
                 AI가 사진과 글이 어우러진 블로그 포스팅을 자동으로 작성해 드립니다.
               </p>
-              {profile && (
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-medium">{profile.center_name}</span> · 
-                  이번 달 {profile.current_usage}/{profile.monthly_limit}회 사용
-                </p>
-              )}
             </div>
           </div>
         )}
