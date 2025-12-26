@@ -9,6 +9,18 @@ interface GeneratedBlog {
   hashtags: string[];
 }
 
+interface SimulationProfile {
+  id: string;
+  center_name: string;
+  region: string;
+  writing_tone_prompt: string | null;
+  style_config: any;
+}
+
+interface UsePhotoBlogOptions {
+  simulationProfile?: SimulationProfile | null;
+}
+
 interface UsePhotoBlogReturn {
   isUploading: boolean;
   isGenerating: boolean;
@@ -19,13 +31,15 @@ interface UsePhotoBlogReturn {
   reset: () => void;
 }
 
-export const usePhotoBlog = (): UsePhotoBlogReturn => {
+export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn => {
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   const [generatedBlog, setGeneratedBlog] = useState<GeneratedBlog | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile, isAdmin } = useAuth();
+  
+  const simulationProfile = options?.simulationProfile;
 
   const uploadPhotos = async (photos: PhotoItem[]): Promise<string[]> => {
     const urls: string[] = [];
@@ -80,6 +94,9 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
       setIsGenerating(true);
 
       // Step 2: Call AI vision function with center name
+      // Use simulation profile if admin is testing, otherwise use own profile
+      const targetProfile = simulationProfile || profile;
+      
       const photosData = photos.map((photo, index) => ({
         imageUrl: urls[index],
         keyword: photo.keyword || '',
@@ -88,10 +105,10 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
       const { data, error: fnError } = await supabase.functions.invoke('generate-blog-vision', {
         body: { 
           photos: photosData, 
-          centerName: profile.center_name,
-          region: profile.region || '',
-          writingTonePrompt: profile.writing_tone_prompt || null,
-          styleConfig: (profile as any).style_config || null
+          centerName: targetProfile.center_name,
+          region: targetProfile.region || '',
+          writingTonePrompt: targetProfile.writing_tone_prompt || null,
+          styleConfig: (targetProfile as any).style_config || null
         },
       });
 

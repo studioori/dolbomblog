@@ -4,6 +4,7 @@ import Header from '@/components/Header';
 import PhotoUploader, { type PhotoItem } from '@/components/PhotoUploader';
 import PhotoBlogResult from '@/components/PhotoBlogResult';
 import RecentPostsList from '@/components/RecentPostsList';
+import AdminSimulationBar, { type SimulationProfile } from '@/components/AdminSimulationBar';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { usePhotoBlog } from '@/hooks/usePhotoBlog';
@@ -13,6 +14,7 @@ import { Loader2, Sparkles, AlertCircle, ImageIcon, Lock } from 'lucide-react';
 
 const Index = () => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [simulationProfile, setSimulationProfile] = useState<SimulationProfile | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user, profile, canGenerate, isLoading: authLoading, isAdmin } = useAuth();
@@ -25,7 +27,7 @@ const Index = () => {
     error,
     uploadAndGenerate,
     reset,
-  } = usePhotoBlog();
+  } = usePhotoBlog({ simulationProfile });
 
   const isLoading = isUploading || isGenerating;
 
@@ -103,6 +105,13 @@ const Index = () => {
       <Header />
       
       <main className="max-w-2xl mx-auto px-4 py-6 sm:py-10 space-y-6 sm:space-y-10">
+        {/* 관리자 시뮬레이션 모드 */}
+        {isAdmin && (
+          <AdminSimulationBar
+            selectedProfile={simulationProfile}
+            onProfileSelect={setSimulationProfile}
+          />
+        )}
         {/* 비활성화 상태 안내 */}
         {showInactiveNotice && (
           <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
