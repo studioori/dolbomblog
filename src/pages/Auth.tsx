@@ -213,7 +213,7 @@ const Auth = () => {
                   <Input
                     id="signup-center-name"
                     type="text"
-                    placeholder="예: 의정부 늘봄주야간보호센터"
+                    placeholder="예: OO데이케어센터"
                     value={signupCenterName}
                     onChange={(e) => setSignupCenterName(e.target.value)}
                     disabled={isLoading}
@@ -224,7 +224,7 @@ const Auth = () => {
                   <Input
                     id="signup-region"
                     type="text"
-                    placeholder="예: 의정부"
+                    placeholder="시, 군, 구 (예: 성남시 분당구, 의정부시)"
                     value={signupRegion}
                     onChange={(e) => setSignupRegion(e.target.value)}
                     disabled={isLoading}
