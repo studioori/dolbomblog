@@ -12,6 +12,11 @@ interface StyleConfig {
   requiredKeywords: string[];
   forbiddenWords: string[];
   customPrompt: string;
+  // New advanced settings
+  styleReferenceText?: string;
+  introGreeting?: string;
+  outroSignature?: string;
+  sentenceLength?: 'short' | 'long';
 }
 
 // Build tone instruction based on style config
@@ -34,6 +39,13 @@ const buildToneInstruction = (styleConfig: StyleConfig | null, fallbackPrompt?: 
     default:
       instructions.push(`부드럽고 공손한 '해요체'를 사용하세요. 차분하면서도 따뜻한 느낌으로 작성하세요.`);
       break;
+  }
+
+  // Sentence length instructions
+  if (styleConfig.sentenceLength === 'long') {
+    instructions.push(`문장은 길고 서술적으로 작성하세요. 상황과 감정을 풍부하게 묘사하며, 여러 절을 연결한 유려한 문체를 사용하세요.`);
+  } else {
+    instructions.push(`문장은 짧고 간결하게 작성하세요. 한 문장에 하나의 생각만 담아 읽기 쉽게 구성하세요.`);
   }
 
   // Emoji frequency instructions
@@ -68,9 +80,64 @@ const buildToneInstruction = (styleConfig: StyleConfig | null, fallbackPrompt?: 
   return instructions.join('\n\n');
 };
 
+// Build style mimicry instruction from reference text
+const buildStyleMimicryInstruction = (styleConfig: StyleConfig | null): string => {
+  if (!styleConfig?.styleReferenceText?.trim()) {
+    return '';
+  }
+
+  return `
+# 🎯 Style Mimicry (최우선 적용)
+
+아래 [Reference Text]를 깊이 분석하세요.
+- 글의 분위기와 감성
+- 자주 사용하는 어미 (예: ~했답니다 vs ~했습니다 vs ~했어요)
+- 문단의 길이와 줄바꿈 패턴
+- 감탄사와 추임새의 빈도 및 스타일
+- 특징적인 표현과 어휘 선택
+
+이 분석을 바탕으로, 새로 작성하는 글도 **동일한 스타일과 문체**로 작성하세요.
+
+---
+[Reference Text]
+${styleConfig.styleReferenceText}
+---
+
+⚠️ 중요: 위 예시 글의 문체를 완벽하게 모방하세요. 이 지침은 다른 톤앤매너 설정보다 우선합니다.
+`;
+};
+
+// Build structure enforcement instruction
+const buildStructureInstruction = (styleConfig: StyleConfig | null): string => {
+  const parts: string[] = [];
+
+  if (styleConfig?.introGreeting?.trim()) {
+    parts.push(`📌 **고정 도입부:** 글의 맨 앞에 반드시 다음 문구를 그대로 출력하세요:\n"${styleConfig.introGreeting}"`);
+  }
+
+  if (styleConfig?.outroSignature?.trim()) {
+    parts.push(`📌 **고정 맺음말:** 글의 맨 마지막(해시태그 바로 전)에 반드시 다음 문구를 그대로 출력하세요:\n"${styleConfig.outroSignature}"`);
+  }
+
+  if (parts.length === 0) {
+    return '';
+  }
+
+  return `
+# 📏 Structure Enforcement (구조 고정)
+
+${parts.join('\n\n')}
+`;
+};
+
 // Dynamic System Instruction Template
 const getSystemInstruction = (region: string, centerName: string, styleConfig: StyleConfig | null, fallbackTonePrompt?: string | null) => {
+  const styleMimicryInstruction = buildStyleMimicryInstruction(styleConfig);
+  const structureInstruction = buildStructureInstruction(styleConfig);
   const toneInstruction = buildToneInstruction(styleConfig, fallbackTonePrompt);
+  
+  // If style reference text exists, it takes priority
+  const hasStyleReference = styleConfig?.styleReferenceText?.trim();
   
   return `# Role Definition
 
@@ -82,6 +149,8 @@ const getSystemInstruction = (region: string, centerName: string, styleConfig: S
    - 예시: "이곳 ${region}에도 따스한 봄바람이 불어옵니다."
 3. **Hashtags:** 해시태그 생성 시 지역명과 센터명을 반드시 포함하세요.
    - 필수 태그: #${region.replace(/\s/g, '')}주야간보호 #${centerName.replace(/\s/g, '')} #${region.replace(/\s/g, '')}노인돌봄
+${styleMimicryInstruction}
+${structureInstruction}
 
 # 🚫 CRITICAL: 절대 금지 표현 (Negative Constraints)
 
@@ -138,7 +207,7 @@ const getSystemInstruction = (region: string, centerName: string, styleConfig: S
 를 자연스럽게 엮어서 서술하세요.
 
 ## 6. Tone & Manner
-
+${hasStyleReference ? '\n(⚠️ 예시 글이 설정되어 있으므로 아래 톤 지침보다 예시 글의 문체를 우선합니다)\n' : ''}
 ${toneInstruction}
 
 # Few-shot Example
@@ -221,7 +290,7 @@ serve(async (req) => {
     // Generate dynamic system instruction with style config
     const systemInstruction = getSystemInstruction(dynamicRegion, dynamicCenterName, parsedStyleConfig, writingTonePrompt);
 
-    console.log(`Generating blog for center: ${dynamicCenterName}, region: ${dynamicRegion}, styleConfig: ${parsedStyleConfig ? 'yes' : 'no'}, customTone: ${writingTonePrompt ? 'yes' : 'default'}`);
+    console.log(`Generating blog for center: ${dynamicCenterName}, region: ${dynamicRegion}, styleConfig: ${parsedStyleConfig ? 'yes' : 'no'}, hasReferenceText: ${parsedStyleConfig?.styleReferenceText ? 'yes' : 'no'}`);
 
     // Build multimodal message content
     const userContent: any[] = [

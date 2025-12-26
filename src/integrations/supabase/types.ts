@@ -66,12 +66,16 @@ export type Database = {
           current_usage: number
           email: string | null
           id: string
+          intro_greeting: string | null
           is_active: boolean
           max_image_count: number
           monthly_limit: number
+          outro_signature: string | null
           plan_tier: string
           region: string | null
+          sentence_length: string | null
           style_config: Json | null
+          style_reference_text: string | null
           updated_at: string
           writing_tone_prompt: string | null
         }
@@ -81,12 +85,16 @@ export type Database = {
           current_usage?: number
           email?: string | null
           id: string
+          intro_greeting?: string | null
           is_active?: boolean
           max_image_count?: number
           monthly_limit?: number
+          outro_signature?: string | null
           plan_tier?: string
           region?: string | null
+          sentence_length?: string | null
           style_config?: Json | null
+          style_reference_text?: string | null
           updated_at?: string
           writing_tone_prompt?: string | null
         }
@@ -96,12 +104,16 @@ export type Database = {
           current_usage?: number
           email?: string | null
           id?: string
+          intro_greeting?: string | null
           is_active?: boolean
           max_image_count?: number
           monthly_limit?: number
+          outro_signature?: string | null
           plan_tier?: string
           region?: string | null
+          sentence_length?: string | null
           style_config?: Json | null
+          style_reference_text?: string | null
           updated_at?: string
           writing_tone_prompt?: string | null
         }
