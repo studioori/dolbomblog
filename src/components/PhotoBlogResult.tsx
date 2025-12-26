@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Copy, Check, RotateCcw, Hash } from 'lucide-react';
+import { Copy, Check, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface PhotoBlogResultProps {
@@ -90,16 +89,13 @@ const PhotoBlogResult = ({
     placeholderRegex.lastIndex = 0;
 
     while ((match = placeholderRegex.exec(content)) !== null) {
-      // Collect text before this placeholder
       if (match.index > lastIndex) {
         currentText += content.slice(lastIndex, match.index);
       }
 
       const imageIndex = parseInt(match[1]) - 1;
       
-      // When we find an image, create a block with image first, then accumulated text
       if (imageIndex >= 0 && imageIndex < imageUrls.length) {
-        // If there's accumulated text from before, add it to previous block or create text-only block
         if (currentText.trim() && blocks.length > 0) {
           blocks[blocks.length - 1].text += currentText;
           currentText = '';
@@ -108,7 +104,6 @@ const PhotoBlogResult = ({
           currentText = '';
         }
         
-        // Create new block with this image (text will be added after)
         blocks.push({
           imageUrl: imageUrls[imageIndex],
           imageIndex: imageIndex,
@@ -119,12 +114,10 @@ const PhotoBlogResult = ({
       lastIndex = match.index + match[0].length;
     }
 
-    // Handle remaining text
     if (lastIndex < content.length) {
       currentText += content.slice(lastIndex);
     }
 
-    // Assign remaining text to the last image block, or create text-only block
     if (currentText.trim()) {
       if (blocks.length > 0 && blocks[blocks.length - 1].imageUrl) {
         blocks[blocks.length - 1].text = currentText.trim();
@@ -133,7 +126,6 @@ const PhotoBlogResult = ({
       }
     }
 
-    // If no blocks created but we have content, create a single text block
     if (blocks.length === 0 && content.trim()) {
       blocks.push({ text: content.trim() });
     }
@@ -144,65 +136,111 @@ const PhotoBlogResult = ({
   const storyBlocks = parseStoryBlocks();
 
   return (
-    <article className="w-full max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-      {/* Title Section */}
-      <header className="mb-12">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 leading-tight mb-4">
-          {title}
-        </h1>
-        <div className="h-px bg-border/60 w-16" />
-      </header>
-
-      {/* Seamless Story Stream - Continuous Flow, No Cards */}
-      <div className="space-y-0">
-        {storyBlocks.map((block, idx) => (
-          <div key={idx}>
-            {/* Image - Sharp Corners, Full Width */}
-            {block.imageUrl && (
-              <div className="mt-12 mb-6">
-                <img
-                  src={block.imageUrl}
-                  alt={`활동 사진 ${(block.imageIndex ?? 0) + 1}`}
-                  className="w-full rounded-none"
-                />
-              </div>
-            )}
-            
-            {/* Text - Left Aligned, Loose Leading */}
-            {block.text && (
-              <div>
-                {block.text.split('\n').map((paragraph, pIdx) => (
-                  paragraph.trim() && (
-                    <p 
-                      key={pIdx}
-                      className="text-lg text-gray-800 leading-loose mb-6 text-left"
-                    >
-                      {paragraph}
-                    </p>
-                  )
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Hashtags Section */}
-      <footer className="mt-16 pt-8 border-t border-border/40">
-        <div className="flex flex-wrap gap-2">
-          {hashtags.map((tag, index) => (
-            <span
-              key={index}
-              className="text-sm text-primary/70 hover:text-primary transition-colors"
-            >
-              {tag}
-            </span>
-          ))}
+    <div className="w-full animate-fade-in">
+      {/* Naver Blog Style Preview Container */}
+      <article 
+        className="mx-auto bg-white shadow-lg border border-gray-200"
+        style={{
+          maxWidth: '800px',
+          fontFamily: "'Nanum Gothic', 'Malgun Gothic', sans-serif",
+        }}
+      >
+        {/* Blog Header Bar */}
+        <div className="bg-gradient-to-r from-[#03C75A] to-[#00B843] px-6 py-3">
+          <span className="text-white text-xs font-medium tracking-wide">
+            📝 네이버 블로그 미리보기
+          </span>
         </div>
-      </footer>
 
-      {/* Action Buttons - Sticky Bottom */}
-      <div className="sticky bottom-4 mt-12 flex gap-3">
+        {/* Content Area */}
+        <div 
+          className="px-5 sm:px-10 py-10"
+          style={{
+            fontSize: '16px',
+            lineHeight: '1.8',
+            color: '#333333',
+            wordBreak: 'keep-all',
+          }}
+        >
+          {/* Title */}
+          <h1 
+            className="font-bold mb-8 pb-4 border-b-2 border-[#03C75A]"
+            style={{
+              fontSize: '24px',
+              lineHeight: '1.4',
+              color: '#1a1a1a',
+            }}
+          >
+            {title}
+          </h1>
+
+          {/* Story Blocks */}
+          <div className="space-y-0">
+            {storyBlocks.map((block, idx) => (
+              <div key={idx}>
+                {/* Image */}
+                {block.imageUrl && (
+                  <div className="my-6">
+                    <img
+                      src={block.imageUrl}
+                      alt={`활동 사진 ${(block.imageIndex ?? 0) + 1}`}
+                      className="block mx-auto"
+                      style={{
+                        maxWidth: '100%',
+                        height: 'auto',
+                        borderRadius: '4px',
+                      }}
+                    />
+                  </div>
+                )}
+                
+                {/* Text Paragraphs */}
+                {block.text && (
+                  <div>
+                    {block.text.split('\n').map((paragraph, pIdx) => (
+                      paragraph.trim() && (
+                        <p 
+                          key={pIdx}
+                          className="mb-6"
+                          style={{
+                            fontSize: '16px',
+                            lineHeight: '1.8',
+                            color: '#333333',
+                            textAlign: 'left',
+                          }}
+                        >
+                          {paragraph}
+                        </p>
+                      )
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Hashtags */}
+          <div 
+            className="mt-10 pt-6 border-t border-gray-200"
+            style={{ color: '#03C75A' }}
+          >
+            <div className="flex flex-wrap gap-2">
+              {hashtags.map((tag, index) => (
+                <span
+                  key={index}
+                  className="text-sm hover:underline cursor-pointer"
+                  style={{ color: '#03C75A' }}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </article>
+
+      {/* Action Buttons - Outside the blog preview */}
+      <div className="max-w-[800px] mx-auto mt-6 px-4 flex gap-3">
         <Button
           variant="forest"
           className="flex-1 h-12 text-base font-medium"
@@ -230,7 +268,7 @@ const PhotoBlogResult = ({
           새 글 작성
         </Button>
       </div>
-    </article>
+    </div>
   );
 };
 
