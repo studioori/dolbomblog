@@ -74,6 +74,11 @@ const StyleConfigModal = ({
     
     const { text, images } = testResult;
     
+    // Guard: 이미지가 없으면 텍스트만 반환
+    if (!images || images.length === 0) {
+      return <span>{text}</span>;
+    }
+    
     // 이미지 플레이스홀더 패턴들을 마커로 치환
     let processedText = text;
     images.forEach((_, index) => {
