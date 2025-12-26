@@ -1,4 +1,4 @@
-import { Heart, Sparkles, LogIn, LogOut, Shield, User } from 'lucide-react';
+import { Heart, LogIn, LogOut, Shield, User } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import ThemeToggle from './ThemeToggle';
@@ -51,10 +51,6 @@ const Header = () => {
               </span>
             </div>
           )}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gold-light border border-secondary/20 transition-all duration-300 hover:shadow-soft hover:scale-105 hover:border-secondary/40 cursor-default group">
-            <Sparkles className="w-3.5 h-3.5 text-secondary transition-transform duration-300 group-hover:rotate-12" />
-            <span className="text-xs font-medium text-gold-dark">AI 글쓰기</span>
-          </div>
           <ThemeToggle />
           
           {user ? (
