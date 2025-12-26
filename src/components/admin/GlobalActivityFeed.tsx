@@ -186,18 +186,15 @@ const GlobalActivityFeed = () => {
               {/* Images */}
               {selectedPost?.image_paths && selectedPost.image_paths.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {selectedPost.image_paths.map((path, index) => {
-                    const { data } = supabase.storage.from('daily-photos').getPublicUrl(path);
-                    return (
-                      <div key={index} className="aspect-square rounded-lg overflow-hidden bg-muted">
-                        <img 
-                          src={data.publicUrl} 
-                          alt={`이미지 ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    );
-                  })}
+                  {selectedPost.image_paths.map((imagePath, index) => (
+                    <div key={index} className="aspect-square rounded-lg overflow-hidden bg-muted">
+                      <img 
+                        src={imagePath} 
+                        alt={`이미지 ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
 
