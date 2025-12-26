@@ -12,6 +12,7 @@ export interface SimulationProfile {
   region: string;
   writing_tone_prompt: string | null;
   style_config: any;
+  max_image_count: number;
 }
 
 interface AdminSimulationBarProps {
@@ -41,7 +42,7 @@ const AdminSimulationBar = ({ onProfileSelect, selectedProfile }: AdminSimulatio
       // Fetch non-admin profiles
       const { data: profilesData, error } = await supabase
         .from('profiles')
-        .select('id, center_name, region, writing_tone_prompt, style_config')
+        .select('id, center_name, region, writing_tone_prompt, style_config, max_image_count')
         .eq('is_active', true)
         .order('center_name');
 
