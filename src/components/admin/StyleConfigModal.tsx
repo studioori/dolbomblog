@@ -96,8 +96,8 @@ const StyleConfigModal = ({ isOpen, onClose, centerName, initialConfig, onSave }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Palette className="w-5 h-5 text-purple-600" />
             AI 글쓰기 스타일 상세 설정
@@ -107,7 +107,7 @@ const StyleConfigModal = ({ isOpen, onClose, centerName, initialConfig, onSave }
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
+        <ScrollArea className="flex-1 min-h-0 pr-4">
           <div className="space-y-6 py-4">
             {/* Section A: Style DNA */}
             <div className="space-y-4 p-4 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 border border-purple-200 dark:border-purple-800">
