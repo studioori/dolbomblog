@@ -5,11 +5,74 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Default Tone & Manner (used when no custom style is set)
-const DEFAULT_TONE_MANNER = `부드럽고 공손한 '해요체'를 사용하세요. 문단은 3~4줄로 짧게 끊고, 따뜻한 이모지(😊, 🌞, 🌸 등)를 적절히 사용하세요.`;
+// Style config interface
+interface StyleConfig {
+  tone: 'warm' | 'energetic' | 'professional';
+  emojiFrequency: 'minimal' | 'moderate' | 'plentiful';
+  requiredKeywords: string[];
+  forbiddenWords: string[];
+  customPrompt: string;
+}
+
+// Build tone instruction based on style config
+const buildToneInstruction = (styleConfig: StyleConfig | null, fallbackPrompt?: string | null): string => {
+  if (!styleConfig) {
+    return fallbackPrompt || `부드럽고 공손한 '해요체'를 사용하세요. 문단은 3~4줄로 짧게 끊고, 따뜻한 이모지(😊, 🌞, 🌸 등)를 적절히 사용하세요.`;
+  }
+
+  const instructions: string[] = [];
+
+  // Tone instructions
+  switch (styleConfig.tone) {
+    case 'energetic':
+      instructions.push(`활기차고 에너지 넘치는 톤으로 작성하세요. 문장 끝에 느낌표(!)를 적극 사용하고, '으랏차차', '파이팅', '화이팅' 같은 활기찬 추임새를 자연스럽게 넣으세요.`);
+      break;
+    case 'professional':
+      instructions.push(`전문적이고 신뢰감 있는 톤으로 작성하세요. '~합니다', '~습니다' 같은 격식체를 사용하고, 활동의 전문적 효과와 의미를 강조하세요.`);
+      break;
+    case 'warm':
+    default:
+      instructions.push(`부드럽고 공손한 '해요체'를 사용하세요. 차분하면서도 따뜻한 느낌으로 작성하세요.`);
+      break;
+  }
+
+  // Emoji frequency instructions
+  switch (styleConfig.emojiFrequency) {
+    case 'minimal':
+      instructions.push(`이모지는 제목과 마지막 인사에만 각각 1개씩 사용하고 본문에는 절대 쓰지 마세요.`);
+      break;
+    case 'plentiful':
+      instructions.push(`이모지를 풍부하게 사용하세요. 각 문단에 1-2개씩 자연스럽게 배치하여 글에 생동감을 주세요. 😊✨🌸🌿 등 다양한 이모지를 활용하세요.`);
+      break;
+    case 'moderate':
+    default:
+      instructions.push(`이모지는 문단 끝이나 자연스러운 호흡 위치에 적당히 배치하세요. 과하지 않게 2-3개 정도 사용하세요.`);
+      break;
+  }
+
+  // Required keywords
+  if (styleConfig.requiredKeywords && styleConfig.requiredKeywords.length > 0) {
+    instructions.push(`글 작성 시 다음 키워드/표현을 자연스럽게 녹여내세요: ${styleConfig.requiredKeywords.join(', ')}`);
+  }
+
+  // Forbidden words
+  if (styleConfig.forbiddenWords && styleConfig.forbiddenWords.length > 0) {
+    instructions.push(`⚠️ 다음 단어/표현은 절대 사용하지 마세요 (금지어): ${styleConfig.forbiddenWords.join(', ')}`);
+  }
+
+  // Custom prompt
+  if (styleConfig.customPrompt && styleConfig.customPrompt.trim()) {
+    instructions.push(`\n추가 지침:\n${styleConfig.customPrompt}`);
+  }
+
+  return instructions.join('\n\n');
+};
 
 // Dynamic System Instruction Template
-const getSystemInstruction = (region: string, centerName: string, customTonePrompt?: string | null) => `# Role Definition
+const getSystemInstruction = (region: string, centerName: string, styleConfig: StyleConfig | null, fallbackTonePrompt?: string | null) => {
+  const toneInstruction = buildToneInstruction(styleConfig, fallbackTonePrompt);
+  
+  return `# Role Definition
 
 당신은 '${region}'에 위치한 '${centerName}'의 전문적이고 따뜻한 사회복지사입니다.
 글을 작성할 때 다음 지침을 엄격히 따르세요:
@@ -76,7 +139,7 @@ const getSystemInstruction = (region: string, centerName: string, customToneProm
 
 ## 6. Tone & Manner
 
-${customTonePrompt ? customTonePrompt : DEFAULT_TONE_MANNER}
+${toneInstruction}
 
 # Few-shot Example
 
@@ -122,6 +185,7 @@ JSON 형식으로 반환하세요:
   "content": "본문 내용 (이미지 플레이스홀더 포함)",
   "hashtags": ["#${centerName.replace(/\s/g, '')}", "#${region.replace(/\s/g, '')}주야간보호", "#해시태그3", ...최대 10개]
 }`;
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -129,7 +193,7 @@ serve(async (req) => {
   }
 
   try {
-    const { photos, centerName, region, writingTonePrompt } = await req.json();
+    const { photos, centerName, region, writingTonePrompt, styleConfig } = await req.json();
     
     if (!photos || !Array.isArray(photos) || photos.length === 0) {
       throw new Error("사진 데이터가 필요합니다.");
@@ -144,10 +208,20 @@ serve(async (req) => {
     const dynamicCenterName = centerName || "늘봄주야간보호센터";
     const dynamicRegion = region || "";
     
-    // Generate dynamic system instruction with custom tone if available
-    const systemInstruction = getSystemInstruction(dynamicRegion, dynamicCenterName, writingTonePrompt);
+    // Parse style config if it's a string
+    let parsedStyleConfig: StyleConfig | null = null;
+    if (styleConfig) {
+      try {
+        parsedStyleConfig = typeof styleConfig === 'string' ? JSON.parse(styleConfig) : styleConfig;
+      } catch (e) {
+        console.error("Error parsing styleConfig:", e);
+      }
+    }
+    
+    // Generate dynamic system instruction with style config
+    const systemInstruction = getSystemInstruction(dynamicRegion, dynamicCenterName, parsedStyleConfig, writingTonePrompt);
 
-    console.log(`Generating blog for center: ${dynamicCenterName}, region: ${dynamicRegion}, customTone: ${writingTonePrompt ? 'yes' : 'default'}`);
+    console.log(`Generating blog for center: ${dynamicCenterName}, region: ${dynamicRegion}, styleConfig: ${parsedStyleConfig ? 'yes' : 'no'}, customTone: ${writingTonePrompt ? 'yes' : 'default'}`);
 
     // Build multimodal message content
     const userContent: any[] = [

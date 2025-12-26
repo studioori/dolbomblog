@@ -10,16 +10,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Users, Edit, Building2, MapPin, AlertCircle, Palette, Plus, ImagePlus, ShieldCheck } from 'lucide-react';
+import { Loader2, Users, Edit, Building2, MapPin, AlertCircle, Plus, ImagePlus, ShieldCheck, Trash2, Palette } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import AdminHeader from '@/components/admin/AdminHeader';
 import StatsWidgets from '@/components/admin/StatsWidgets';
 import GlobalActivityFeed from '@/components/admin/GlobalActivityFeed';
+import StyleConfigModal, { type StyleConfig } from '@/components/admin/StyleConfigModal';
 
 interface Profile {
   id: string;
@@ -33,6 +34,7 @@ interface Profile {
   created_at: string;
   writing_tone_prompt: string | null;
   max_image_count: number;
+  style_config: any;
 }
 
 interface Stats {
@@ -70,11 +72,19 @@ const Admin = () => {
   const [editMonthlyLimit, setEditMonthlyLimit] = useState(10);
   const [editIsActive, setEditIsActive] = useState(false);
   const [editPlanTier, setEditPlanTier] = useState('free');
-  const [editWritingTonePrompt, setEditWritingTonePrompt] = useState('');
   const [editMaxImageCount, setEditMaxImageCount] = useState(5);
   const [editIsAdminRole, setEditIsAdminRole] = useState(false);
   const [showAdminWarning, setShowAdminWarning] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Delete user state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<Profile | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Style config modal state
+  const [styleModalOpen, setStyleModalOpen] = useState(false);
+  const [styleModalProfile, setStyleModalProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -152,7 +162,6 @@ const Admin = () => {
     setEditMonthlyLimit(profile.monthly_limit);
     setEditIsActive(profile.is_active);
     setEditPlanTier(profile.plan_tier);
-    setEditWritingTonePrompt(profile.writing_tone_prompt || '');
     setEditMaxImageCount(profile.max_image_count || 5);
     setValidationError(null);
     setShowAdminWarning(false);
@@ -195,7 +204,6 @@ const Admin = () => {
           monthly_limit: editMonthlyLimit,
           is_active: editIsActive,
           plan_tier: editPlanTier,
-          writing_tone_prompt: editWritingTonePrompt || null,
           max_image_count: editMaxImageCount,
         })
         .eq('id', selectedProfile.id);
@@ -651,24 +659,6 @@ const Admin = () => {
                 checked={editIsActive}
                 onCheckedChange={setEditIsActive}
               />
-            </div>
-
-            <div className="space-y-2 pt-4 border-t">
-              <Label htmlFor="edit-writing-tone" className="flex items-center gap-2">
-                <Palette className="w-4 h-4" />
-                글 생성 스타일 설정
-              </Label>
-              <Textarea
-                id="edit-writing-tone"
-                value={editWritingTonePrompt}
-                onChange={(e) => setEditWritingTonePrompt(e.target.value)}
-                placeholder="예: 유치원 선생님처럼 아주 밝고 명랑한 톤으로 작성, 이모지 많이 사용..."
-                rows={4}
-                className="resize-none"
-              />
-              <p className="text-xs text-muted-foreground">
-                이 센터의 블로그 글 말투, 분위기, 필수 포함 요소 등을 정의합니다. 비워두면 기본 스타일이 적용됩니다.
-              </p>
             </div>
 
             {/* Admin Role Section */}

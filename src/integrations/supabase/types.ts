@@ -50,6 +50,7 @@ export type Database = {
           monthly_limit: number
           plan_tier: string
           region: string | null
+          style_config: Json | null
           updated_at: string
           writing_tone_prompt: string | null
         }
@@ -64,6 +65,7 @@ export type Database = {
           monthly_limit?: number
           plan_tier?: string
           region?: string | null
+          style_config?: Json | null
           updated_at?: string
           writing_tone_prompt?: string | null
         }
@@ -78,6 +80,7 @@ export type Database = {
           monthly_limit?: number
           plan_tier?: string
           region?: string | null
+          style_config?: Json | null
           updated_at?: string
           writing_tone_prompt?: string | null
         }
