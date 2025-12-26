@@ -47,7 +47,7 @@ const StyleConfigModal = ({
   // Test generation state
   const [testPhotos, setTestPhotos] = useState<PhotoItem[]>([]);
   const [isTestGenerating, setIsTestGenerating] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{ text: string; images: string[] } | null>(null);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -62,10 +62,56 @@ const StyleConfigModal = ({
 
   const handleCopyResult = async () => {
     if (!testResult) return;
-    await navigator.clipboard.writeText(testResult);
+    await navigator.clipboard.writeText(testResult.text);
     setCopied(true);
     toast.success('클립보드에 복사되었습니다');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // 이미지 플레이스홀더를 실제 이미지로 치환하여 렌더링
+  const renderTestResultWithImages = () => {
+    if (!testResult) return null;
+    
+    const { text, images } = testResult;
+    
+    // 이미지 플레이스홀더 패턴들을 마커로 치환
+    let processedText = text;
+    images.forEach((_, index) => {
+      const patterns = [
+        `[사진 ${index + 1}]`,
+        `(사진 ${index + 1})`,
+        `[이미지 ${index + 1}]`,
+        `[IMAGE_PLACEHOLDER_${index + 1}]`,
+        `(사진${index + 1})`,
+        `[사진${index + 1}]`,
+      ];
+      patterns.forEach(pattern => {
+        processedText = processedText.split(pattern).join(`__IMG_MARKER_${index}__`);
+      });
+    });
+    
+    // 마커를 기준으로 분할하여 텍스트와 이미지를 번갈아 렌더링
+    const parts = processedText.split(/__IMG_MARKER_(\d+)__/);
+    
+    return parts.map((part, i) => {
+      // 홀수 인덱스는 이미지 인덱스 번호
+      if (i % 2 === 1) {
+        const imgIndex = parseInt(part);
+        if (images[imgIndex]) {
+          return (
+            <img 
+              key={`img-${i}`} 
+              src={images[imgIndex]} 
+              alt={`사진 ${imgIndex + 1}`}
+              className="max-w-full h-auto rounded-lg my-3 mx-auto block shadow-soft"
+            />
+          );
+        }
+        return null;
+      }
+      // 짝수 인덱스는 텍스트
+      return <span key={`text-${i}`}>{part}</span>;
+    });
   };
 
   const handleTestGenerate = async () => {
@@ -113,9 +159,12 @@ const StyleConfigModal = ({
 
       if (error) throw error;
 
-      // Format the result
+      // Format the result with image URLs
       const formattedResult = `📌 제목: ${data.title}\n\n${data.content}\n\n${data.hashtags?.join(' ') || ''}`;
-      setTestResult(formattedResult);
+      setTestResult({
+        text: formattedResult,
+        images: uploadedPhotos.map(p => p.imageUrl),
+      });
       toast.success('테스트 글 생성 완료!');
 
       // Cleanup test photos from storage
@@ -314,11 +363,11 @@ const StyleConfigModal = ({
                         )}
                       </Button>
                     </div>
-                    <ScrollArea className="max-h-60">
-                      <div className="text-sm whitespace-pre-wrap text-foreground/90 leading-relaxed pr-4">
-                        {testResult}
+                    <div className="max-h-60 overflow-y-auto pr-2">
+                      <div className="text-sm whitespace-pre-wrap text-foreground/90 leading-relaxed">
+                        {renderTestResultWithImages()}
                       </div>
-                    </ScrollArea>
+                    </div>
                   </div>
                 )}
               </div>
