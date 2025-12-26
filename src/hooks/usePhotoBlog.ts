@@ -90,7 +90,8 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
           photos: photosData, 
           centerName: profile.center_name,
           region: profile.region || '',
-          writingTonePrompt: profile.writing_tone_prompt || null
+          writingTonePrompt: profile.writing_tone_prompt || null,
+          styleConfig: (profile as any).style_config || null
         },
       });
 
