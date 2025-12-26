@@ -124,7 +124,7 @@ const Auth = () => {
               돌봄 블로그 생성기
             </CardTitle>
             <CardDescription className="mt-2">
-              주야간보호센터를 위한 AI 블로그 자동 생성 서비스
+              돌봄기관을 위한 AI 블로그 자동 생성 서비스
             </CardDescription>
           </div>
         </CardHeader>
