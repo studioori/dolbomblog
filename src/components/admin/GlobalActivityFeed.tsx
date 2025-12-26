@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Eye, Image as ImageIcon, FileText, MapPin } from 'lucide-react';
+import { Loader2, Eye, FileText, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -77,12 +77,6 @@ const GlobalActivityFeed = () => {
     setIsModalOpen(true);
   };
 
-  const getFirstImageUrl = (imagePaths: string[]) => {
-    if (!imagePaths || imagePaths.length === 0) return null;
-    const { data } = supabase.storage.from('daily-photos').getPublicUrl(imagePaths[0]);
-    return data.publicUrl;
-  };
-
   const getPreviewText = (content: string) => {
     const cleanContent = content.replace(/<[^>]*>/g, '').replace(/\n/g, ' ');
     return cleanContent.length > 50 ? cleanContent.substring(0, 50) + '...' : cleanContent;
@@ -115,73 +109,54 @@ const GlobalActivityFeed = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 dark:bg-slate-800/50">
-                  <TableHead className="text-slate-600 dark:text-slate-300">업체 정보</TableHead>
-                  <TableHead className="text-slate-600 dark:text-slate-300 w-16">썸네일</TableHead>
+                  <TableHead className="text-slate-600 dark:text-slate-300 w-[180px]">업체 정보</TableHead>
                   <TableHead className="text-slate-600 dark:text-slate-300">내용 미리보기</TableHead>
-                  <TableHead className="text-slate-600 dark:text-slate-300">생성 일시</TableHead>
-                  <TableHead className="text-slate-600 dark:text-slate-300 text-right">작업</TableHead>
+                  <TableHead className="text-slate-600 dark:text-slate-300 w-[160px]">생성 일시</TableHead>
+                  <TableHead className="text-slate-600 dark:text-slate-300 text-right w-[100px]">작업</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {posts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-slate-500 dark:text-slate-400">
+                    <TableCell colSpan={4} className="text-center py-8 text-slate-500 dark:text-slate-400">
                       생성된 글이 없습니다
                     </TableCell>
                   </TableRow>
                 ) : (
-                  posts.map((post) => {
-                    const thumbnailUrl = getFirstImageUrl(post.image_paths);
-                    return (
-                      <TableRow key={post.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium text-slate-800 dark:text-slate-100">
-                              {post.center_name}
+                  posts.map((post) => (
+                    <TableRow key={post.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-slate-800 dark:text-slate-100">
+                            {post.center_name}
+                          </span>
+                          {post.region && (
+                            <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {post.region}
                             </span>
-                            {post.region && (
-                              <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                <MapPin className="w-3 h-3" />
-                                {post.region}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {thumbnailUrl ? (
-                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-700">
-                              <img 
-                                src={thumbnailUrl} 
-                                alt="썸네일" 
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          ) : (
-                            <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
-                              <ImageIcon className="w-5 h-5 text-slate-400" />
-                            </div>
                           )}
-                        </TableCell>
-                        <TableCell className="text-slate-600 dark:text-slate-300 max-w-xs">
-                          <p className="truncate">{getPreviewText(post.content)}</p>
-                        </TableCell>
-                        <TableCell className="text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                          {format(new Date(post.created_at), 'yyyy-MM-dd HH:mm', { locale: ko })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openPostModal(post)}
-                            className="border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            전문 보기
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-slate-600 dark:text-slate-300">
+                        <p className="line-clamp-2">{getPreviewText(post.content)}</p>
+                      </TableCell>
+                      <TableCell className="text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        {format(new Date(post.created_at), 'yyyy-MM-dd HH:mm', { locale: ko })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openPostModal(post)}
+                          className="border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          전문 보기
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 )}
               </TableBody>
             </Table>

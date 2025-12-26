@@ -126,8 +126,12 @@ export const usePhotoBlog = (): UsePhotoBlogReturn => {
         console.warn('Failed to save post to history:', saveError);
       }
 
-      // Increment usage count
+      // Increment usage count and log activity
       await supabase.rpc('increment_usage', { _user_id: user.id });
+      await supabase.from('activity_logs').insert({
+        user_id: user.id,
+        action_type: 'GENERATE_POST',
+      });
       refreshProfile();
 
     } catch (err) {

@@ -13,14 +13,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Users, Edit, Building2, MapPin, AlertCircle, Plus, ImagePlus, ShieldCheck, Trash2, Palette } from 'lucide-react';
-import { format } from 'date-fns';
+import { Loader2, Users, Edit, Building2, MapPin, AlertCircle, Plus, ImagePlus, ShieldCheck, Trash2, Palette, BarChart3, Clock } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import AdminHeader from '@/components/admin/AdminHeader';
 import StatsWidgets from '@/components/admin/StatsWidgets';
 import GlobalActivityFeed from '@/components/admin/GlobalActivityFeed';
 import StyleConfigModal, { type StyleConfig } from '@/components/admin/StyleConfigModal';
+import UsageHistoryModal from '@/components/admin/UsageHistoryModal';
 
 interface Profile {
   id: string;
@@ -35,6 +37,9 @@ interface Profile {
   writing_tone_prompt: string | null;
   max_image_count: number;
   style_config: any;
+  // Analytics fields (computed)
+  lastActive?: Date | null;
+  totalPosts?: number;
 }
 
 interface Stats {
@@ -86,6 +91,10 @@ const Admin = () => {
   const [styleModalOpen, setStyleModalOpen] = useState(false);
   const [styleModalProfile, setStyleModalProfile] = useState<Profile | null>(null);
 
+  // Usage history modal state
+  const [usageModalOpen, setUsageModalOpen] = useState(false);
+  const [usageModalProfile, setUsageModalProfile] = useState<Profile | null>(null);
+
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
       navigate('/');
@@ -122,7 +131,42 @@ const Admin = () => {
         profile => !adminUserIds.has(profile.id)
       );
 
-      setProfiles(clientProfiles);
+      // Fetch activity logs for last active time
+      const { data: activityLogs } = await supabase
+        .from('activity_logs')
+        .select('user_id, created_at')
+        .in('user_id', clientProfiles.map(p => p.id))
+        .order('created_at', { ascending: false });
+
+      // Group activity logs by user to get most recent
+      const lastActiveMap: Record<string, Date> = {};
+      activityLogs?.forEach(log => {
+        if (!lastActiveMap[log.user_id]) {
+          lastActiveMap[log.user_id] = new Date(log.created_at);
+        }
+      });
+
+      // Fetch total posts count per user
+      const { data: postCounts } = await supabase
+        .from('generated_posts')
+        .select('user_id');
+
+      // Count posts per user
+      const postsCountMap: Record<string, number> = {};
+      postCounts?.forEach(post => {
+        if (post.user_id) {
+          postsCountMap[post.user_id] = (postsCountMap[post.user_id] || 0) + 1;
+        }
+      });
+
+      // Enrich profiles with analytics
+      const enrichedProfiles: Profile[] = clientProfiles.map(profile => ({
+        ...profile,
+        lastActive: lastActiveMap[profile.id] || null,
+        totalPosts: postsCountMap[profile.id] || 0,
+      }));
+
+      setProfiles(enrichedProfiles);
 
       // Calculate stats (excluding admins)
       const today = new Date();
@@ -461,82 +505,147 @@ const Admin = () => {
                       <TableRow className="bg-slate-50 dark:bg-slate-800/50">
                         <TableHead className="text-slate-600 dark:text-slate-300">센터명</TableHead>
                         <TableHead className="text-slate-600 dark:text-slate-300">지역</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300">이메일</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300">요금제</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300">사용량</TableHead>
+                        <TableHead className="text-slate-600 dark:text-slate-300">사용률</TableHead>
+                        <TableHead className="text-slate-600 dark:text-slate-300">최근 접속</TableHead>
+                        <TableHead className="text-slate-600 dark:text-slate-300">누적 생성</TableHead>
                         <TableHead className="text-slate-600 dark:text-slate-300">상태</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-300">가입일</TableHead>
                         <TableHead className="text-slate-600 dark:text-slate-300 text-right">관리</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {profiles.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-slate-500 dark:text-slate-400">
+                          <TableCell colSpan={7} className="text-center py-8 text-slate-500 dark:text-slate-400">
                             가입된 업체가 없습니다
                           </TableCell>
                         </TableRow>
                       ) : (
-                        profiles.map((profile) => (
-                          <TableRow key={profile.id} className={!profile.is_active ? 'bg-slate-50 dark:bg-slate-800/30' : ''}>
-                            <TableCell className="font-medium text-slate-800 dark:text-slate-100">
-                              {profile.center_name === '내 센터' ? (
-                                <span className="text-slate-400 italic">미등록</span>
-                              ) : (
-                                profile.center_name
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {profile.region ? (
-                                <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
-                                  <MapPin className="w-3 h-3" />
-                                  {profile.region}
+                        profiles.map((profile) => {
+                          const utilization = profile.monthly_limit > 0 
+                            ? Math.round((profile.current_usage / profile.monthly_limit) * 100) 
+                            : 0;
+                          const utilizationColor = utilization >= 100 
+                            ? 'bg-red-500' 
+                            : utilization >= 70 
+                            ? 'bg-emerald-500' 
+                            : 'bg-slate-300 dark:bg-slate-600';
+                          
+                          return (
+                            <TableRow key={profile.id} className={!profile.is_active ? 'bg-slate-50 dark:bg-slate-800/30' : ''}>
+                              <TableCell className="font-medium text-slate-800 dark:text-slate-100">
+                                <div>
+                                  {profile.center_name === '내 센터' ? (
+                                    <span className="text-slate-400 italic">미등록</span>
+                                  ) : (
+                                    profile.center_name
+                                  )}
+                                  <p className="text-xs text-slate-500">{profile.email}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {profile.region ? (
+                                  <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
+                                    <MapPin className="w-3 h-3" />
+                                    {profile.region}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <Progress value={utilization} className={`w-16 h-2 [&>div]:${utilizationColor}`} />
+                                    <span className={`text-sm font-medium ${
+                                      utilization >= 100 ? 'text-red-600 dark:text-red-400' 
+                                      : utilization >= 70 ? 'text-emerald-600 dark:text-emerald-400' 
+                                      : 'text-slate-500'
+                                    }`}>
+                                      {utilization}%
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-500">
+                                    ({profile.current_usage}/{profile.monthly_limit})
+                                  </p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {profile.lastActive ? (
+                                  <div className="flex items-center gap-1 text-sm text-slate-600 dark:text-slate-300">
+                                    <Clock className="w-3 h-3" />
+                                    {formatDistanceToNow(profile.lastActive, { addSuffix: true, locale: ko })}
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-400 text-sm">기록 없음</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-slate-600 dark:text-slate-300 font-medium">
+                                  {profile.totalPosts || 0}개
                                 </span>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-slate-600 dark:text-slate-300">{profile.email}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={`
-                                ${profile.plan_tier === 'premium' 
-                                  ? 'border-amber-300 text-amber-700 dark:border-amber-600 dark:text-amber-400'
-                                  : profile.plan_tier === 'basic'
-                                  ? 'border-blue-300 text-blue-700 dark:border-blue-600 dark:text-blue-400'
-                                  : 'border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-400'
-                                }
-                              `}>
-                                {profile.plan_tier}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-slate-600 dark:text-slate-300">
-                              {profile.current_usage} / {profile.monthly_limit}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={profile.is_active ? 'default' : 'secondary'} className={`
-                                ${profile.is_active 
-                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                                  : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                                }
-                              `}>
-                                {profile.is_active ? '활성' : '비활성'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-slate-500 dark:text-slate-400">
-                              {format(new Date(profile.created_at), 'yyyy.MM.dd', { locale: ko })}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openEditDialog(profile)}
-                                className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={profile.is_active ? 'default' : 'secondary'} className={`
+                                  ${profile.is_active 
+                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                    : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                                  }
+                                `}>
+                                  {profile.is_active ? '활성' : '비활성'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setUsageModalProfile(profile);
+                                      setUsageModalOpen(true);
+                                    }}
+                                    className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                    title="이용 통계"
+                                  >
+                                    <BarChart3 className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setStyleModalProfile(profile);
+                                      setStyleModalOpen(true);
+                                    }}
+                                    className="text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                                    title="스타일 설정"
+                                  >
+                                    <Palette className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openEditDialog(profile)}
+                                    className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                    title="정보 수정"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setUserToDelete(profile);
+                                      setDeleteConfirmOpen(true);
+                                    }}
+                                    className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    title="삭제"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                       )}
                     </TableBody>
                   </Table>
@@ -823,6 +932,72 @@ const Admin = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>정말로 이 업체를 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>
+              생성된 모든 글과 데이터가 영구적으로 사라집니다. 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={async () => {
+                if (!userToDelete) return;
+                setIsDeleting(true);
+                try {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (!session) throw new Error('로그인이 필요합니다.');
+                  
+                  const response = await supabase.functions.invoke('admin-delete-user', {
+                    body: { userId: userToDelete.id },
+                  });
+                  
+                  if (response.error) throw new Error(response.error.message);
+                  if (response.data?.error) throw new Error(response.data.error);
+                  
+                  toast({ title: '삭제 완료', description: `${userToDelete.center_name} 업체가 삭제되었습니다.` });
+                  setDeleteConfirmOpen(false);
+                  fetchData();
+                } catch (error) {
+                  toast({ title: '삭제 실패', description: error instanceof Error ? error.message : '오류 발생', variant: 'destructive' });
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Style Config Modal */}
+      {styleModalProfile && (
+        <StyleConfigModal
+          isOpen={styleModalOpen}
+          onClose={() => setStyleModalOpen(false)}
+          centerName={styleModalProfile.center_name}
+          initialConfig={styleModalProfile.style_config || { tone: 'warm', emojiFrequency: 'moderate', requiredKeywords: [], forbiddenWords: [], customPrompt: '' }}
+          onSave={async (config) => {
+            await supabase.from('profiles').update({ style_config: config as any }).eq('id', styleModalProfile.id);
+            fetchData();
+          }}
+        />
+      )}
+
+      {/* Usage History Modal */}
+      <UsageHistoryModal
+        isOpen={usageModalOpen}
+        onClose={() => setUsageModalOpen(false)}
+        profile={usageModalProfile}
+      />
     </div>
   );
 };
