@@ -15,7 +15,7 @@ const Index = () => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, profile, canGenerate, isLoading: authLoading } = useAuth();
+  const { user, profile, canGenerate, isLoading: authLoading, isAdmin } = useAuth();
   
   const {
     isUploading,
@@ -47,7 +47,8 @@ const Index = () => {
       return;
     }
 
-    if (!profile?.is_active) {
+    // Admins bypass approval check
+    if (!isAdmin && !profile?.is_active) {
       toast({
         title: '서비스 이용 불가',
         description: '관리자 승인 후 이용할 수 있습니다.',
@@ -56,7 +57,8 @@ const Index = () => {
       return;
     }
 
-    if (!canGenerate) {
+    // Admins bypass usage limit check
+    if (!isAdmin && !canGenerate) {
       toast({
         title: '이용 횟수 초과',
         description: '이번 달 이용 횟수를 초과했습니다. 관리자에게 문의하세요.',
@@ -92,9 +94,9 @@ const Index = () => {
     );
   }
 
-  // Show inactive notice
-  const showInactiveNotice = user && profile && !profile.is_active;
-  const showLimitReached = user && profile && profile.is_active && !canGenerate;
+  // Show inactive notice (not for admins)
+  const showInactiveNotice = user && profile && !profile.is_active && !isAdmin;
+  const showLimitReached = user && profile && profile.is_active && !canGenerate && !isAdmin;
 
   return (
     <div className="min-h-screen bg-background">
@@ -152,7 +154,7 @@ const Index = () => {
               photos={photos}
               onPhotosChange={setPhotos}
               isLoading={isLoading}
-              maxPhotos={5}
+              maxPhotos={profile?.max_image_count || 5}
             />
 
             {/* 에러 메시지 */}
