@@ -26,7 +26,7 @@ interface AuthContextType {
   profile: Profile | null;
   isAdmin: boolean;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null; isAdmin?: boolean }>;
   signUp: (email: string, password: string, metadata?: { center_name: string; region: string }) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -131,12 +131,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password,
     });
     
-    // Log login activity
     if (!error && data.user) {
+      // Log login activity
       await supabase.from('activity_logs').insert({
         user_id: data.user.id,
         action_type: 'LOGIN',
       });
+      
+      // Fetch role immediately and return it
+      const roleData = await fetchUserRole(data.user.id);
+      const userIsAdmin = roleData?.role === 'admin';
+      setIsAdmin(userIsAdmin);
+      
+      return { error: null, isAdmin: userIsAdmin };
     }
     
     return { error: error as Error | null };
