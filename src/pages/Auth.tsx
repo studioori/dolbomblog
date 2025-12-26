@@ -121,7 +121,7 @@ const Auth = () => {
           </div>
           <div>
             <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-              늘봄 블로그 생성기
+              돌봄 블로그 생성기
             </CardTitle>
             <CardDescription className="mt-2">
               주야간보호센터를 위한 AI 블로그 자동 생성 서비스
