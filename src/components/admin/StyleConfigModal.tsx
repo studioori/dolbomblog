@@ -3,9 +3,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Palette, FileText, PenTool, FlaskConical, Sparkles } from 'lucide-react';
+import { Loader2, Palette, FileText, PenTool, FlaskConical, Sparkles, Copy, Check, Dna, MessageSquareText } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import PhotoUploader, { PhotoItem } from '@/components/PhotoUploader';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -41,6 +42,7 @@ const StyleConfigModal = ({
 }: StyleConfigModalProps) => {
   const [config, setConfig] = useState<StyleConfig>({ ...defaultConfig, ...initialConfig });
   const [isSaving, setIsSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   // Test generation state
   const [testPhotos, setTestPhotos] = useState<PhotoItem[]>([]);
@@ -56,6 +58,14 @@ const StyleConfigModal = ({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleCopyResult = async () => {
+    if (!testResult) return;
+    await navigator.clipboard.writeText(testResult);
+    setCopied(true);
+    toast.success('클립보드에 복사되었습니다');
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleTestGenerate = async () => {
@@ -130,135 +140,215 @@ const StyleConfigModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl h-[90vh] w-[calc(100vw-2rem)] sm:w-full flex flex-col overflow-hidden">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <Palette className="w-5 h-5 text-purple-600" />
-            AI 글쓰기 스타일 설정
+      <DialogContent className="max-w-3xl h-[90vh] w-[calc(100vw-2rem)] sm:w-full flex flex-col overflow-hidden bg-gradient-to-b from-background to-accent/30 border-border/50 shadow-elevated">
+        <DialogHeader className="flex-shrink-0 pb-4 border-b border-border/50">
+          <DialogTitle className="flex items-center gap-3 text-xl">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Palette className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <span className="block">AI 글쓰기 스타일 설정</span>
+              <Badge variant="secondary" className="mt-1 text-xs font-normal">
+                {centerName}
+              </Badge>
+            </div>
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="sr-only">
             {centerName}의 블로그 글 스타일을 설정합니다
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="flex-1 min-h-0 pr-4">
-          <div className="space-y-6 py-4">
+          <div className="space-y-5 py-5">
             {/* Section A: Style DNA (Reference Text) */}
-            <div className="space-y-3 p-4 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 border border-purple-200 dark:border-purple-800">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-purple-600" />
-                <Label className="text-base font-semibold text-purple-900 dark:text-purple-100">
-                  🧬 스타일 DNA (Reference Text)
-                </Label>
-              </div>
-              <Textarea
-                value={config.styleReferenceText}
-                onChange={(e) => setConfig({ ...config, styleReferenceText: e.target.value })}
-                placeholder="AI가 흉내 내기를 원하는 블로그 글 본문을 통째로 붙여넣으세요.
+            <div className="group relative overflow-hidden rounded-2xl border border-primary/20 bg-card shadow-soft transition-all duration-300 hover:shadow-card hover:border-primary/30">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-primary/80 to-secondary" />
+              <div className="p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                    <Dna className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <Label className="text-base font-semibold text-foreground flex items-center gap-2">
+                      스타일 DNA
+                      <Badge variant="outline" className="text-[10px] font-normal text-primary border-primary/30">
+                        핵심
+                      </Badge>
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      모방할 예시 글을 붙여넣으세요
+                    </p>
+                  </div>
+                </div>
+                <Textarea
+                  value={config.styleReferenceText}
+                  onChange={(e) => setConfig({ ...config, styleReferenceText: e.target.value })}
+                  placeholder="AI가 흉내 내기를 원하는 블로그 글 본문을 통째로 붙여넣으세요.
 
 예시:
 안녕하세요~ 사랑과 정성의 OO주야간보호센터입니다! 🌸
 오늘 하루도 어르신들의 밝은 웃음소리로 가득했답니다.
 아침부터 불어오는 봄바람이 참 좋았는데요..."
-                rows={8}
-                className="resize-none text-sm"
-              />
-              <p className="text-xs text-purple-600 dark:text-purple-400">
-                💡 AI가 이 글의 문체, 호흡, 구성 방식을 스스로 분석하여 적용합니다.
-              </p>
+                  rows={8}
+                  className="resize-none text-sm bg-background/50 border-border/50 focus:bg-background transition-colors duration-200"
+                />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
+                  <Sparkles className="w-3.5 h-3.5 text-secondary" />
+                  AI가 문체, 호흡, 구성 방식을 자동으로 분석하여 적용합니다
+                </div>
+              </div>
             </div>
 
             {/* Section B: Custom Instructions */}
-            <div className="space-y-3 p-4 rounded-lg bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center gap-2">
-                <PenTool className="w-5 h-5 text-blue-600" />
-                <Label className="text-base font-semibold text-blue-900 dark:text-blue-100">
-                  ✍️ 관리자 지시사항 (Custom Instructions)
-                </Label>
-              </div>
-              <Textarea
-                value={config.customPrompt}
-                onChange={(e) => setConfig({ ...config, customPrompt: e.target.value })}
-                placeholder="전화번호, 필수 해시태그, 또는 특별히 주의해야 할 점 등을 자유롭게 적어주세요.
+            <div className="group relative overflow-hidden rounded-2xl border border-secondary/20 bg-card shadow-soft transition-all duration-300 hover:shadow-card hover:border-secondary/30">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-secondary via-secondary/80 to-primary" />
+              <div className="p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-secondary/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                    <MessageSquareText className="w-5 h-5 text-secondary" />
+                  </div>
+                  <div className="flex-1">
+                    <Label className="text-base font-semibold text-foreground flex items-center gap-2">
+                      관리자 지시사항
+                      <Badge variant="outline" className="text-[10px] font-normal text-secondary border-secondary/30">
+                        선택
+                      </Badge>
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      추가 요청사항을 자유롭게 입력하세요
+                    </p>
+                  </div>
+                </div>
+                <Textarea
+                  value={config.customPrompt}
+                  onChange={(e) => setConfig({ ...config, customPrompt: e.target.value })}
+                  placeholder="전화번호, 필수 해시태그, 또는 특별히 주의해야 할 점 등을 자유롭게 적어주세요.
 
 예시:
 - 글 마지막에 항상 '상담 문의: 010-1234-5678' 넣기
 - #OO동노인돌봄 해시태그 필수 포함
 - '어르신'이라는 표현 대신 '어른신분'으로 통일"
-                rows={5}
-                className="resize-none text-sm"
-              />
-              <p className="text-xs text-blue-600 dark:text-blue-400">
-                💡 여기에 적은 내용은 AI가 글 작성 시 엄격히 따릅니다.
-              </p>
+                  rows={5}
+                  className="resize-none text-sm bg-background/50 border-border/50 focus:bg-background transition-colors duration-200"
+                />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
+                  <PenTool className="w-3.5 h-3.5 text-secondary" />
+                  여기에 적은 내용은 AI가 글 작성 시 엄격히 따릅니다
+                </div>
+              </div>
             </div>
 
-            <Separator />
+            <Separator className="my-6" />
 
             {/* Section C: Test Generation */}
-            <div className="space-y-4 p-4 rounded-lg bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800">
-              <div className="flex items-center gap-2">
-                <FlaskConical className="w-5 h-5 text-amber-600" />
-                <Label className="text-base font-semibold text-amber-900 dark:text-amber-100">
-                  🧪 테스트용 사진 업로드 (최대 {maxImageCount}장)
-                </Label>
-              </div>
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                위 스타일 설정으로 실제 글 생성 결과를 미리 확인해보세요. (저장 없이 테스트만 수행)
-              </p>
-
-              <PhotoUploader
-                photos={testPhotos}
-                onPhotosChange={setTestPhotos}
-                isLoading={isTestGenerating}
-                maxPhotos={maxImageCount}
-              />
-
-              <Button
-                onClick={handleTestGenerate}
-                disabled={isTestGenerating || testPhotos.length === 0}
-                className="w-full bg-amber-600 hover:bg-amber-700"
-              >
-                {isTestGenerating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    테스트 글 생성 중...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    현재 설정으로 테스트 생성
-                  </>
-                )}
-              </Button>
-
-              {/* Test Result */}
-              {testResult && (
-                <div className="mt-4 p-4 rounded-lg bg-white dark:bg-gray-900 border border-amber-300 dark:border-amber-700">
-                  <Label className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-2 block">
-                    📝 생성된 테스트 글
-                  </Label>
-                  <div className="text-sm whitespace-pre-wrap text-foreground max-h-60 overflow-y-auto">
-                    {testResult}
+            <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card shadow-soft transition-all duration-300 hover:shadow-card">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-muted-foreground/30 via-muted-foreground/50 to-muted-foreground/30" />
+              <div className="p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                    <FlaskConical className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <Label className="text-base font-semibold text-foreground flex items-center gap-2">
+                      스타일 테스트
+                      <Badge variant="secondary" className="text-[10px] font-normal">
+                        최대 {maxImageCount}장
+                      </Badge>
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      위 설정으로 실제 글 생성 결과를 미리 확인해보세요
+                    </p>
                   </div>
                 </div>
-              )}
+
+                <PhotoUploader
+                  photos={testPhotos}
+                  onPhotosChange={setTestPhotos}
+                  isLoading={isTestGenerating}
+                  maxPhotos={maxImageCount}
+                />
+
+                <Button
+                  onClick={handleTestGenerate}
+                  disabled={isTestGenerating || testPhotos.length === 0}
+                  variant="secondary"
+                  className="w-full h-11 text-sm font-medium shadow-soft hover:shadow-card transition-all duration-300"
+                >
+                  {isTestGenerating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      AI가 글을 작성하고 있습니다...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      현재 설정으로 테스트 생성
+                    </>
+                  )}
+                </Button>
+
+                {/* Test Result */}
+                {testResult && (
+                  <div className="relative mt-4 p-4 rounded-xl bg-gradient-to-br from-background to-accent/20 border border-primary/20 animate-fade-in">
+                    <div className="flex items-center justify-between mb-3">
+                      <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-primary" />
+                        생성된 테스트 글
+                      </Label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCopyResult}
+                        className="h-8 px-3 text-xs hover:bg-primary/10"
+                      >
+                        {copied ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 mr-1.5 text-primary" />
+                            복사됨
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 mr-1.5" />
+                            복사
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <ScrollArea className="max-h-60">
+                      <div className="text-sm whitespace-pre-wrap text-foreground/90 leading-relaxed pr-4">
+                        {testResult}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </ScrollArea>
 
-        <DialogFooter className="pt-4 border-t flex-shrink-0">
-          <Button variant="outline" onClick={handleClose}>
+        <DialogFooter className="pt-4 border-t border-border/50 flex-shrink-0 gap-2 sm:gap-3">
+          <Button 
+            variant="outline" 
+            onClick={handleClose}
+            className="flex-1 sm:flex-none h-11 border-border/50 hover:bg-muted/50"
+          >
             취소
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="bg-purple-600 hover:bg-purple-700">
+          <Button 
+            onClick={handleSave} 
+            disabled={isSaving} 
+            className="flex-1 sm:flex-none h-11 bg-primary hover:bg-primary/90 shadow-soft hover:shadow-card transition-all duration-300"
+          >
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 저장 중...
               </>
             ) : (
-              '스타일 저장'
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                스타일 저장
+              </>
             )}
           </Button>
         </DialogFooter>
