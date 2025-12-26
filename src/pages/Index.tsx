@@ -142,7 +142,7 @@ const Index = () => {
               <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
                 사진으로 <span className="text-gradient-gold inline-block transition-transform duration-300 hover:scale-105">따뜻한 이야기</span>를 만들어보세요
               </h2>
-              <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto leading-relaxed px-4 sm:px-0">
+              <p className="text-sm sm:text-base text-muted-foreground w-full leading-relaxed px-4 sm:px-0">
                 활동 사진을 업로드하고 키워드를 입력하면,<br className="hidden sm:block"/>
                 AI가 사진과 글이 어우러진 블로그 포스팅을 자동으로 작성해 드립니다.
               </p>
