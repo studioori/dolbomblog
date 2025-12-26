@@ -18,6 +18,8 @@ const loginSchema = z.object({
 const signupSchema = z.object({
   email: z.string().email('올바른 이메일을 입력해주세요'),
   password: z.string().min(6, '비밀번호는 최소 6자 이상이어야 합니다'),
+  centerName: z.string().trim().min(1, '센터명을 입력해주세요').max(100, '센터명은 100자 이하로 입력해주세요'),
+  region: z.string().trim().min(1, '지역을 입력해주세요').max(50, '지역은 50자 이하로 입력해주세요'),
 });
 
 const Auth = () => {
@@ -26,6 +28,8 @@ const Auth = () => {
   const [loginPassword, setLoginPassword] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
+  const [signupCenterName, setSignupCenterName] = useState('');
+  const [signupRegion, setSignupRegion] = useState('');
   
   const { signIn, signUp, user, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -77,7 +81,9 @@ const Auth = () => {
     
     const validation = signupSchema.safeParse({ 
       email: signupEmail, 
-      password: signupPassword
+      password: signupPassword,
+      centerName: signupCenterName,
+      region: signupRegion,
     });
     if (!validation.success) {
       toast({
@@ -89,7 +95,10 @@ const Auth = () => {
     }
 
     setIsLoading(true);
-    const { error } = await signUp(signupEmail, signupPassword);
+    const { error } = await signUp(signupEmail, signupPassword, {
+      center_name: signupCenterName.trim(),
+      region: signupRegion.trim(),
+    });
     setIsLoading(false);
 
     if (error) {
@@ -105,10 +114,12 @@ const Auth = () => {
     } else {
       toast({
         title: '회원가입 요청 완료',
-        description: '회원가입 요청이 완료되었습니다. 관리자 승인 후 센터 정보가 등록되면 서비스를 이용하실 수 있습니다.',
+        description: '회원가입 요청이 완료되었습니다. 관리자 승인 후 서비스를 이용하실 수 있습니다.',
       });
       setSignupEmail('');
       setSignupPassword('');
+      setSignupCenterName('');
+      setSignupRegion('');
     }
   };
 
@@ -176,7 +187,7 @@ const Auth = () => {
             <TabsContent value="signup">
               <form onSubmit={handleSignup} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">이메일</Label>
+                  <Label htmlFor="signup-email">이메일 <span className="text-destructive">*</span></Label>
                   <Input
                     id="signup-email"
                     type="email"
@@ -187,16 +198,41 @@ const Auth = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">비밀번호</Label>
+                  <Label htmlFor="signup-password">비밀번호 <span className="text-destructive">*</span></Label>
                   <Input
                     id="signup-password"
                     type="password"
-                    placeholder="••••••••"
+                    placeholder="최소 6자리"
                     value={signupPassword}
                     onChange={(e) => setSignupPassword(e.target.value)}
                     disabled={isLoading}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-center-name">센터명 <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="signup-center-name"
+                    type="text"
+                    placeholder="예: 의정부 늘봄주야간보호센터"
+                    value={signupCenterName}
+                    onChange={(e) => setSignupCenterName(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-region">지역 <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="signup-region"
+                    type="text"
+                    placeholder="예: 의정부"
+                    value={signupRegion}
+                    onChange={(e) => setSignupRegion(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  ⚠️ 입력하신 센터명과 지역은 가입 후 임의로 수정할 수 없습니다.
+                </p>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? (
                     <>
@@ -209,7 +245,7 @@ const Auth = () => {
                 </Button>
                 <div className="bg-muted/50 rounded-lg p-4 mt-4">
                   <p className="text-xs text-center text-muted-foreground">
-                    📋 회원가입 요청 후 관리자가 센터 정보를 등록하고 승인하면 서비스를 이용하실 수 있습니다.
+                    📋 회원가입 요청 후 관리자가 승인하면 서비스를 이용하실 수 있습니다.
                   </p>
                 </div>
               </form>
