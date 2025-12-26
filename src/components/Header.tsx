@@ -44,7 +44,7 @@ const Header = () => {
           </div>
         </Link>
         <div className="flex items-center gap-2">
-          {user && profile && (
+          {user && profile && !isAdmin && (
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/10 border border-secondary/20">
               <span className="text-xs font-medium text-muted-foreground">
                 이번 달 글쓰기 {profile.current_usage}/{profile.monthly_limit}회
