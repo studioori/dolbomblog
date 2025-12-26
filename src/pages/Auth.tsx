@@ -31,20 +31,20 @@ const Auth = () => {
   const [signupCenterName, setSignupCenterName] = useState('');
   const [signupRegion, setSignupRegion] = useState('');
   
-  const { signIn, signUp, user, isAdmin } = useAuth();
+  const { signIn, signUp, user, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Only redirect if user is already logged in on page load
   useEffect(() => {
-    if (user) {
-      // Redirect admin to admin dashboard, others to home
+    if (user && !isLoading) {
       if (isAdmin) {
         navigate('/admin');
       } else {
         navigate('/');
       }
     }
-  }, [user, isAdmin, navigate]);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +60,7 @@ const Auth = () => {
     }
 
     setIsLoading(true);
-    const { error } = await signIn(loginEmail, loginPassword);
+    const { error, isAdmin: userIsAdmin } = await signIn(loginEmail, loginPassword);
     setIsLoading(false);
 
     if (error) {
@@ -73,6 +73,13 @@ const Auth = () => {
         description: message,
         variant: 'destructive',
       });
+    } else {
+      // Redirect based on role immediately after successful login
+      if (userIsAdmin) {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     }
   };
 
