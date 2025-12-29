@@ -76,7 +76,7 @@ const Admin = () => {
   const [editRegion, setEditRegion] = useState('');
   const [editMonthlyLimit, setEditMonthlyLimit] = useState(10);
   const [editIsActive, setEditIsActive] = useState(false);
-  const [editPlanTier, setEditPlanTier] = useState('free');
+  const [editPlanTier, setEditPlanTier] = useState('trial');
   const [editMaxImageCount, setEditMaxImageCount] = useState(5);
   const [editIsAdminRole, setEditIsAdminRole] = useState(false);
   const [showAdminWarning, setShowAdminWarning] = useState(false);
@@ -751,7 +751,7 @@ const Admin = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="free">Free</SelectItem>
+                  <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="basic">Basic</SelectItem>
                   <SelectItem value="premium">Premium</SelectItem>
                 </SelectContent>
