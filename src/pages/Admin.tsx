@@ -52,7 +52,7 @@ interface Stats {
 // Plan tier default values
 const PLAN_DEFAULTS: Record<string, { monthlyLimit: number; maxImageCount: number }> = {
   trial: { monthlyLimit: 15, maxImageCount: 5 },
-  basic: { monthlyLimit: 20, maxImageCount: 7 },
+  basic: { monthlyLimit: 15, maxImageCount: 5 },
   premium: { monthlyLimit: 30, maxImageCount: 10 },
 };
 
