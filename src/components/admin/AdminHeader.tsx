@@ -40,7 +40,7 @@ const AdminHeader = () => {
               <span className="text-gradient-forest">통합 관리 센터</span>
             </h1>
             <p className="text-xs text-muted-foreground font-medium">
-              돌봄 블로그 생성기 · 서비스 관제
+              돌봄 블로그 생성기 · 서비스 관리
             </p>
           </div>
         </Link>
