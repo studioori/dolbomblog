@@ -49,6 +49,13 @@ interface Stats {
   monthlyUsage: number;
 }
 
+// Plan tier default values
+const PLAN_DEFAULTS: Record<string, { monthlyLimit: number; maxImageCount: number }> = {
+  trial: { monthlyLimit: 15, maxImageCount: 5 },
+  basic: { monthlyLimit: 20, maxImageCount: 7 },
+  premium: { monthlyLimit: 30, maxImageCount: 10 },
+};
+
 const Admin = () => {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -81,6 +88,13 @@ const Admin = () => {
   const [editIsAdminRole, setEditIsAdminRole] = useState(false);
   const [showAdminWarning, setShowAdminWarning] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  
+  // Original values for limit reduction warning
+  const [originalMonthlyLimit, setOriginalMonthlyLimit] = useState(0);
+  const [originalMaxImageCount, setOriginalMaxImageCount] = useState(0);
+  
+  // Limit reduction confirmation modal
+  const [showLimitReductionModal, setShowLimitReductionModal] = useState(false);
 
   // Delete user state
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -216,6 +230,10 @@ const Admin = () => {
     setEditMaxImageCount(profile.max_image_count || 5);
     setValidationError(null);
     setShowAdminWarning(false);
+    
+    // Store original values for limit reduction warning
+    setOriginalMonthlyLimit(profile.monthly_limit);
+    setOriginalMaxImageCount(profile.max_image_count || 5);
 
     // Check if this user has admin role
     const { data: roleData } = await supabase
@@ -228,7 +246,21 @@ const Admin = () => {
     setIsDialogOpen(true);
   };
 
-  const handleSave = async () => {
+  // Handle plan tier change - update limits to plan defaults
+  const handlePlanTierChange = (newPlanTier: string) => {
+    setEditPlanTier(newPlanTier);
+    const defaults = PLAN_DEFAULTS[newPlanTier];
+    if (defaults) {
+      setEditMonthlyLimit(defaults.monthlyLimit);
+      setEditMaxImageCount(defaults.maxImageCount);
+    }
+  };
+
+  // Check if there are any limit reductions
+  const hasLimitReduction = editMonthlyLimit < originalMonthlyLimit || editMaxImageCount < originalMaxImageCount;
+
+  // Attempt to save - may show confirmation modal first
+  const handleSaveClick = () => {
     if (!selectedProfile) return;
 
     // Validation: 활성화 시 센터명과 지역 필수
@@ -244,6 +276,19 @@ const Admin = () => {
     }
 
     setValidationError(null);
+
+    // Show confirmation modal if there are limit reductions
+    if (hasLimitReduction) {
+      setShowLimitReductionModal(true);
+      return;
+    }
+
+    // No reduction warnings, proceed with save
+    performSave();
+  };
+
+  const performSave = async () => {
+    if (!selectedProfile) return;
     setIsSaving(true);
     try {
       // Update profile
@@ -746,7 +791,7 @@ const Admin = () => {
 
             <div className="space-y-2">
               <Label htmlFor="edit-plan">요금제</Label>
-              <Select value={editPlanTier} onValueChange={setEditPlanTier}>
+              <Select value={editPlanTier} onValueChange={handlePlanTierChange}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -770,6 +815,11 @@ const Admin = () => {
               <p className="text-xs text-muted-foreground">
                 현재 사용량: {selectedProfile?.current_usage}회
               </p>
+              {editMonthlyLimit < originalMonthlyLimit && (
+                <p className="text-sm text-destructive">
+                  ⚠️ 월간 한도가 {originalMonthlyLimit}회→{editMonthlyLimit}회로 줄어듭니다.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -788,6 +838,11 @@ const Admin = () => {
               <p className="text-xs text-muted-foreground">
                 한 번에 업로드 가능한 사진 개수 (기본: 5장)
               </p>
+              {editMaxImageCount < originalMaxImageCount && (
+                <p className="text-sm text-destructive">
+                  ⚠️ 이미지 업로드 수가 {originalMaxImageCount}개→{editMaxImageCount}개로 줄어듭니다.
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-between">
@@ -863,7 +918,7 @@ const Admin = () => {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               취소
             </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button onClick={handleSaveClick} disabled={isSaving}>
               {isSaving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1029,6 +1084,37 @@ const Admin = () => {
         onClose={() => setUsageModalOpen(false)}
         profile={usageModalProfile}
       />
+
+      {/* Limit Reduction Confirmation Modal */}
+      <AlertDialog open={showLimitReductionModal} onOpenChange={setShowLimitReductionModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>한도 축소 확인</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">월간 한도가 줄어듭니다. 계속 저장하시겠습니까?</span>
+              {editMonthlyLimit < originalMonthlyLimit && (
+                <span className="block text-destructive">
+                  • 월간 한도: {originalMonthlyLimit}회 → {editMonthlyLimit}회
+                </span>
+              )}
+              {editMaxImageCount < originalMaxImageCount && (
+                <span className="block text-destructive">
+                  • 이미지 업로드 수: {originalMaxImageCount}개 → {editMaxImageCount}개
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowLimitReductionModal(false);
+              performSave();
+            }}>
+              확인
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
