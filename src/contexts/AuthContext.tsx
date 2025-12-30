@@ -14,6 +14,7 @@ interface Profile {
   created_at: string;
   writing_tone_prompt: string | null;
   max_image_count: number;
+  subscription_expires_at: string | null;
 }
 
 interface UserRole {
