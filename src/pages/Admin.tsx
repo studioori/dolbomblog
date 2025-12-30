@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Users, Edit, Building2, MapPin, AlertCircle, Plus, ImagePlus, ShieldCheck, Trash2, Palette, BarChart3, Clock, Mail } from 'lucide-react';
+import { Loader2, Users, Edit, Building2, MapPin, AlertCircle, Plus, ImagePlus, ShieldCheck, Trash2, Palette, BarChart3, Clock, Mail, Ticket } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ import StatsWidgets from '@/components/admin/StatsWidgets';
 import GlobalActivityFeed from '@/components/admin/GlobalActivityFeed';
 import StyleConfigModal, { type StyleConfig } from '@/components/admin/StyleConfigModal';
 import UsageHistoryModal from '@/components/admin/UsageHistoryModal';
+import CouponGenerator from '@/components/admin/CouponGenerator';
 
 interface Profile {
   id: string;
@@ -539,6 +540,12 @@ const Admin = () => {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger 
+              value="coupons" 
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-soft transition-all duration-300"
+            >
+              🎟️ 쿠폰 관리
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab - Activity Feed */}
@@ -803,6 +810,11 @@ const Admin = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Coupons Tab */}
+          <TabsContent value="coupons" className="space-y-6 animate-fade-in">
+            <CouponGenerator />
           </TabsContent>
         </Tabs>
       </main>
