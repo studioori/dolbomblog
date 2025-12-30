@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Users, Edit, Building2, MapPin, AlertCircle, Plus, ImagePlus, ShieldCheck, Trash2, Palette, BarChart3, Clock } from 'lucide-react';
+import { Loader2, Users, Edit, Building2, MapPin, AlertCircle, Plus, ImagePlus, ShieldCheck, Trash2, Palette, BarChart3, Clock, Mail } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -88,6 +88,11 @@ const Admin = () => {
   const [editIsAdminRole, setEditIsAdminRole] = useState(false);
   const [showAdminWarning, setShowAdminWarning] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  
+  // Email edit state
+  const [editEmail, setEditEmail] = useState('');
+  const [originalEmail, setOriginalEmail] = useState('');
+  const [isEmailUpdating, setIsEmailUpdating] = useState(false);
   
   // Original values for limit reduction warning
   const [originalMonthlyLimit, setOriginalMonthlyLimit] = useState(0);
@@ -231,6 +236,11 @@ const Admin = () => {
     setValidationError(null);
     setShowAdminWarning(false);
     
+    // Email edit state
+    setEditEmail(profile.email || '');
+    setOriginalEmail(profile.email || '');
+    setIsEmailUpdating(false);
+    
     // Store original values for limit reduction warning
     setOriginalMonthlyLimit(profile.monthly_limit);
     setOriginalMaxImageCount(profile.max_image_count || 5);
@@ -339,6 +349,73 @@ const Admin = () => {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Handle email update
+  const handleEmailUpdate = async () => {
+    if (!selectedProfile || !editEmail.trim()) return;
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editEmail)) {
+      toast({
+        title: '이메일 형식 오류',
+        description: '올바른 이메일 형식을 입력해주세요.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Skip if email hasn't changed
+    if (editEmail === originalEmail) {
+      return;
+    }
+
+    setIsEmailUpdating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: '로그인 필요',
+          description: '로그인이 필요합니다.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const response = await supabase.functions.invoke('admin-update-user-email', {
+        body: {
+          userId: selectedProfile.id,
+          newEmail: editEmail.trim(),
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
+      toast({
+        title: '이메일 변경 완료',
+        description: `이메일이 ${editEmail}(으)로 변경되었습니다.`,
+      });
+
+      setOriginalEmail(editEmail);
+      fetchData();
+    } catch (error) {
+      console.error('Error updating email:', error);
+      const errorMessage = error instanceof Error ? error.message : '이메일 변경 중 오류가 발생했습니다.';
+      toast({
+        title: '이메일 변경 실패',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsEmailUpdating(false);
     }
   };
 
@@ -759,6 +836,42 @@ const Admin = () => {
                 <p className="text-sm text-destructive">{validationError}</p>
               </div>
             )}
+
+            {/* 이메일 수정 */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-email" className="flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                이메일 주소
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="example@email.com"
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEmailUpdate}
+                  disabled={isEmailUpdating || editEmail === originalEmail || !editEmail.trim()}
+                  className="shrink-0"
+                >
+                  {isEmailUpdating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    '변경'
+                  )}
+                </Button>
+              </div>
+              {editEmail !== originalEmail && editEmail.trim() && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  ⚠️ 이메일 변경 시 '변경' 버튼을 눌러주세요
+                </p>
+              )}
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="edit-center-name" className="flex items-center gap-2">
