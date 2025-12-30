@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Users, Edit, Building2, MapPin, AlertCircle, Plus, ImagePlus, ShieldCheck, Trash2, Palette, BarChart3, Clock, Mail, Ticket } from 'lucide-react';
+import { Loader2, Users, Edit, Building2, MapPin, AlertCircle, Plus, ImagePlus, ShieldCheck, Trash2, Palette, BarChart3, Clock, Mail, Ticket, KeyRound } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -94,6 +94,10 @@ const Admin = () => {
   const [editEmail, setEditEmail] = useState('');
   const [originalEmail, setOriginalEmail] = useState('');
   const [isEmailUpdating, setIsEmailUpdating] = useState(false);
+  
+  // Password edit state
+  const [newPassword, setNewPassword] = useState('');
+  const [isPasswordUpdating, setIsPasswordUpdating] = useState(false);
   
   // Original values for limit reduction warning
   const [originalMonthlyLimit, setOriginalMonthlyLimit] = useState(0);
@@ -241,6 +245,10 @@ const Admin = () => {
     setEditEmail(profile.email || '');
     setOriginalEmail(profile.email || '');
     setIsEmailUpdating(false);
+    
+    // Password edit state
+    setNewPassword('');
+    setIsPasswordUpdating(false);
     
     // Store original values for limit reduction warning
     setOriginalMonthlyLimit(profile.monthly_limit);
@@ -417,6 +425,66 @@ const Admin = () => {
       });
     } finally {
       setIsEmailUpdating(false);
+    }
+  };
+
+  // Handle password update
+  const handlePasswordUpdate = async () => {
+    if (!selectedProfile || !newPassword.trim()) return;
+    
+    // Validate password length
+    if (newPassword.length < 6) {
+      toast({
+        title: '비밀번호 오류',
+        description: '비밀번호는 6자 이상이어야 합니다.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsPasswordUpdating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: '로그인 필요',
+          description: '로그인이 필요합니다.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const response = await supabase.functions.invoke('admin-update-user-password', {
+        body: {
+          userId: selectedProfile.id,
+          newPassword: newPassword.trim(),
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
+      toast({
+        title: '비밀번호 변경 완료',
+        description: '비밀번호가 성공적으로 변경되었습니다.',
+      });
+
+      setNewPassword('');
+    } catch (error) {
+      console.error('Error updating password:', error);
+      const errorMessage = error instanceof Error ? error.message : '비밀번호 변경 중 오류가 발생했습니다.';
+      toast({
+        title: '비밀번호 변경 실패',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsPasswordUpdating(false);
     }
   };
 
@@ -881,6 +949,42 @@ const Admin = () => {
               {editEmail !== originalEmail && editEmail.trim() && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   ⚠️ 이메일 변경 시 '변경' 버튼을 눌러주세요
+                </p>
+              )}
+            </div>
+
+            {/* 비밀번호 수정 */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-password" className="flex items-center gap-2">
+                <KeyRound className="w-4 h-4" />
+                비밀번호 변경
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="edit-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="새 비밀번호 (6자 이상)"
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePasswordUpdate}
+                  disabled={isPasswordUpdating || !newPassword.trim() || newPassword.length < 6}
+                  className="shrink-0"
+                >
+                  {isPasswordUpdating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    '변경'
+                  )}
+                </Button>
+              </div>
+              {newPassword.length > 0 && newPassword.length < 6 && (
+                <p className="text-xs text-destructive">
+                  비밀번호는 6자 이상이어야 합니다
                 </p>
               )}
             </div>
