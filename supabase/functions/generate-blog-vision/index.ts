@@ -249,6 +249,7 @@ serve(async (req) => {
           { role: "system", content: systemInstruction },
           { role: "user", content: userContent }
         ],
+        max_tokens: 4096, // Ensure sufficient response length
       }),
     });
 
@@ -278,27 +279,133 @@ serve(async (req) => {
       throw new Error("AI 응답이 비어있습니다.");
     }
 
-    console.log("AI response received:", aiContent.substring(0, 200));
+    console.log("AI response received:", aiContent.substring(0, 500));
 
-    // Parse JSON from AI response
+    // Helper function to strip markdown code blocks
+    const stripMarkdownCodeBlocks = (text: string): string => {
+      // Remove ```json ... ``` or ``` ... ``` wrapper
+      const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        return codeBlockMatch[1].trim();
+      }
+      return text.trim();
+    };
+
+    // Helper function to extract content from partial/broken JSON
+    const extractContentFromBrokenJson = (text: string): { title?: string; content?: string; hashtags?: string[] } => {
+      const result: { title?: string; content?: string; hashtags?: string[] } = {};
+      
+      // Extract title
+      const titleMatch = text.match(/"title"\s*:\s*"([^"]+)"/);
+      if (titleMatch) {
+        result.title = titleMatch[1];
+      }
+      
+      // Extract content - handle escaped newlines and quotes
+      const contentMatch = text.match(/"content"\s*:\s*"([\s\S]*?)(?:"\s*,\s*"hashtags"|"\s*}|$)/);
+      if (contentMatch) {
+        let content = contentMatch[1];
+        // Clean up the content
+        content = content
+          .replace(/\\n/g, '\n')
+          .replace(/\\"/g, '"')
+          .replace(/\\t/g, '\t')
+          .replace(/\s*"\s*$/, ''); // Remove trailing quote if present
+        result.content = content;
+      }
+      
+      // Extract hashtags
+      const hashtagsMatch = text.match(/"hashtags"\s*:\s*\[([\s\S]*?)\]/);
+      if (hashtagsMatch) {
+        const hashtagsStr = hashtagsMatch[1];
+        const hashtags = hashtagsStr.match(/"([^"]+)"/g);
+        if (hashtags) {
+          result.hashtags = hashtags.map(h => h.replace(/"/g, ''));
+        }
+      }
+      
+      return result;
+    };
+
+    // Multi-stage JSON parsing
     let parsedContent;
+    const regionTag = dynamicRegion ? `#${dynamicRegion.replace(/\s/g, '')}주야간보호` : '#주야간보호';
+    const defaultHashtags = [`#${dynamicCenterName.replace(/\s/g, '')}`, regionTag, `#${dynamicRegion.replace(/\s/g, '')}노인돌봄`];
+    
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsedContent = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("JSON not found in response");
+      // Stage 1: Strip markdown code blocks first
+      const cleanedContent = stripMarkdownCodeBlocks(aiContent);
+      console.log("Cleaned content (first 200 chars):", cleanedContent.substring(0, 200));
+      
+      // Stage 2: Try direct JSON parse
+      try {
+        parsedContent = JSON.parse(cleanedContent);
+        console.log("JSON parsed successfully via direct parse");
+      } catch (directParseError) {
+        console.log("Direct parse failed, trying regex extraction...");
+        
+        // Stage 3: Try to extract JSON object using regex
+        const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            parsedContent = JSON.parse(jsonMatch[0]);
+            console.log("JSON parsed successfully via regex extraction");
+          } catch (regexParseError) {
+            console.log("Regex extraction parse failed, trying field extraction...");
+            
+            // Stage 4: Extract fields individually from broken JSON
+            const extracted = extractContentFromBrokenJson(cleanedContent);
+            if (extracted.content) {
+              parsedContent = {
+                title: extracted.title || "오늘 하루도 따뜻했습니다 🌸",
+                content: extracted.content,
+                hashtags: extracted.hashtags || defaultHashtags
+              };
+              console.log("Content extracted from broken JSON");
+            } else {
+              throw new Error("Could not extract content from JSON");
+            }
+          }
+        } else {
+          // Stage 5: No JSON found, try field extraction from raw content
+          const extracted = extractContentFromBrokenJson(aiContent);
+          if (extracted.content) {
+            parsedContent = {
+              title: extracted.title || "오늘 하루도 따뜻했습니다 🌸",
+              content: extracted.content,
+              hashtags: extracted.hashtags || defaultHashtags
+            };
+            console.log("Content extracted from raw response");
+          } else {
+            throw new Error("No JSON structure found in response");
+          }
+        }
       }
     } catch (parseError) {
-      console.error("JSON parse error:", parseError);
-      // Fallback: create structured content from raw text
-      const regionTag = dynamicRegion ? `#${dynamicRegion.replace(/\s/g, '')}주야간보호` : '#주야간보호';
+      console.error("All JSON parse attempts failed:", parseError);
+      
+      // Final fallback: Clean up raw text and use as content
+      let fallbackContent = aiContent;
+      
+      // Remove markdown code blocks
+      fallbackContent = fallbackContent.replace(/```(?:json)?\s*/g, '').replace(/```/g, '');
+      
+      // Remove JSON syntax artifacts
+      fallbackContent = fallbackContent
+        .replace(/^\s*\{\s*"title"\s*:\s*"[^"]*"\s*,?\s*/g, '')
+        .replace(/^\s*"content"\s*:\s*"/g, '')
+        .replace(/",?\s*"hashtags"\s*:\s*\[[\s\S]*?\]\s*\}?\s*$/g, '')
+        .replace(/\\n/g, '\n')
+        .replace(/\\"/g, '"')
+        .replace(/\\t/g, '\t')
+        .trim();
+      
       parsedContent = {
         title: "오늘 하루도 따뜻했습니다 🌸",
-        content: aiContent,
-        hashtags: [`#${dynamicCenterName.replace(/\s/g, '')}`, regionTag, `#${dynamicRegion.replace(/\s/g, '')}노인돌봄`]
+        content: fallbackContent,
+        hashtags: defaultHashtags
       };
+      console.log("Using fallback content extraction");
     }
 
     return new Response(
