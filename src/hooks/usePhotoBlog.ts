@@ -102,12 +102,18 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
         keyword: photo.keyword || '',
       }));
 
+      // Replace {{CURRENT_DATE}} token with actual date in Korean format
+      const today = new Date();
+      const currentDateStr = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
+      const processedTonePrompt = (targetProfile.writing_tone_prompt || '')
+        .replace(/\{\{CURRENT_DATE\}\}/g, currentDateStr);
+
       const { data, error: fnError } = await supabase.functions.invoke('generate-blog-vision', {
         body: { 
           photos: photosData, 
           centerName: targetProfile.center_name,
           region: targetProfile.region || '',
-          writingTonePrompt: targetProfile.writing_tone_prompt || null,
+          writingTonePrompt: processedTonePrompt || null,
           styleConfig: (targetProfile as any).style_config || null
         },
       });
