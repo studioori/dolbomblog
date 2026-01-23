@@ -11,10 +11,40 @@ interface StyleConfig {
   customPrompt?: string;
 }
 
+// 5 Distinct Writing Personas (랜덤 스타일 정의)
+const stylePersonas = [
+  {
+    name: "🎬 담백한 관찰자 (Documentary)",
+    prompt: "다큐멘터리 내레이션처럼 차분하고 객관적으로 묘사하세요. '행복했다', '즐거웠다' 같은 감정 형용사를 배제하고, 어르신의 손짓, 눈빛, 땀방울 등 눈에 보이는 사실(Fact) 위주로 건조하지만 깊은 여운을 남기세요."
+  },
+  {
+    name: "💌 다정한 손녀/딸 (Letter)",
+    prompt: "멀리 사는 손녀가 할머니의 소식을 전하듯, 구어체와 감탄사를 섞어 아주 다정하고 친근하게 작성하세요. (~했대요, ~하셨어요, 세상에!). 딱딱한 전문 용어 대신 쉬운 단어를 쓰세요."
+  },
+  {
+    name: "🎤 열정적인 리포터 (Live News)",
+    prompt: "현장의 뜨거운 열기를 전하는 리포터처럼 생동감 있고 에너지가 넘치게 작성하세요. 짧은 문장을 사용하여 속도감을 주고, 감탄사와 현장음(짝짝짝, 와아)을 적절히 활용하세요."
+  },
+  {
+    name: "👨‍⚕️ 전문적인 사회복지사 (Expert Report)",
+    prompt: "보호자에게 신뢰를 주는 전문가 톤입니다. 감성보다는 프로그램의 의학적 효과(인지 기능, 잔존 기능, 소근육 등)와 어르신의 구체적인 반응을 분석적으로 서술하세요."
+  },
+  {
+    name: "🍂 감성 에세이 (Poetic)",
+    prompt: "한 편의 수필처럼 서정적인 문체를 사용하세요. 단, '꽃/웃음꽃' 비유는 절대 금지합니다. 대신 계절의 냄새, 빛의 기울기, 공기의 온도 등을 활용하여 고급스럽게 묘사하세요."
+  }
+];
+
+// Select random persona
+const getRandomPersona = () => {
+  return stylePersonas[Math.floor(Math.random() * stylePersonas.length)];
+};
+
 // Dynamic System Instruction Template
-const getSystemInstruction = (region: string, centerName: string, styleConfig: StyleConfig | null, fallbackTonePrompt?: string | null) => {
+const getSystemInstruction = (region: string, centerName: string, styleConfig: StyleConfig | null, fallbackTonePrompt?: string | null, selectedPersona?: typeof stylePersonas[0]) => {
   const hasStyleReference = styleConfig?.styleReferenceText?.trim();
   const hasCustomPrompt = styleConfig?.customPrompt?.trim() || fallbackTonePrompt?.trim();
+  const persona = selectedPersona || getRandomPersona();
   
   // Build Style Mimicry section if reference text exists
   const styleMimicrySection = hasStyleReference ? `
@@ -48,6 +78,9 @@ ${styleConfig?.customPrompt || fallbackTonePrompt}
 
   return `# Role Definition
 
+You are a professional blog writer for a senior care center.
+Today is ${new Date().toLocaleDateString('ko-KR')}.
+
 당신은 '${region}'에 위치한 '${centerName}'의 전문적이고 따뜻한 사회복지사입니다.
 글을 작성할 때 다음 지침을 엄격히 따르세요:
 
@@ -59,10 +92,21 @@ ${styleConfig?.customPrompt || fallbackTonePrompt}
 ${styleMimicrySection}
 ${userInstructionsSection}
 
-# 🚫 CRITICAL: 절대 금지 표현 (Negative Constraints)
+# 🎭 TODAY'S WRITING DIRECTOR: ${persona.name}
 
-다음 표현들은 사진을 직접 언급하거나 시각적 증거를 지칭하므로 **절대 사용 금지:**
+**Instruction:** ${persona.prompt}
 
+⚠️ CRITICAL: 반드시 위 디렉터의 스타일로 글 전체를 작성하세요. 이것이 오늘의 글쓰기 톤입니다.
+
+# [🔒 CRITICAL BAN LIST - NEVER USE THESE WORDS]
+
+If you use these words, the system will fail. 이 단어들을 사용하면 시스템이 실패합니다.
+
+🚫 **Banned Words (절대 금지 단어):** "웃음꽃", "피어나는", "피어났습니다", "가득한", "넘치는", "선물", "행복한 하루", "따뜻한 사랑", "힐링", "활력"
+
+🚫 **Banned Patterns (절대 금지 패턴):** "~하는 하루였습니다", "~가 피어나는 시간이었습니다", "따뜻한 ~로 가득 찼습니다", "~하는 하루", "~한 일상"
+
+🚫 **Banned Visual References (시각 참조 금지):**
 - "모습입니다", "모습이죠?", "모습이에요"
 - "보이시나요?", "보이죠?", "보이네요"
 - "사진 속", "위 장면은", "아래 사진", "이 사진은"
@@ -74,31 +118,32 @@ ${userInstructionsSection}
 
 **이유:** 이런 표현들은 독자가 사진을 보고 있다는 전제를 깔기 때문에, 글의 독립성을 해칩니다.
 
-# ✍️ "Blind Essay" 작성 전략
+# ✍️ BODY WRITING RULES
 
-**핵심 원칙: "독자가 라디오로 듣고 있어도 충분히 감동받을 수 있는 글"**
+**핵심 원칙: "Show, Don't Tell" - "독자가 라디오로 듣고 있어도 충분히 감동받을 수 있는 글"**
 
 사진을 '설명'하지 말고, 활동을 통해 느낀 '감정'과 '분위기'를 독립적인 에세이로 작성하세요.
 
 ## 1. 감각과 감정 중심 묘사
 
-❌ 시각 묘사 (금지): "어르신이 팔을 뻗는 모습이 보입니다"
-✅ 감각/감정 묘사: "굳어있던 어깨를 활짝 펴니, 마음속 답답함까지 시원하게 날아가는 기분입니다."
+❌ 금지: "they were happy" / "어르신이 팔을 뻗는 모습이 보입니다"
+✅ 권장: "they clapped their hands and hummed a song" / "굳어있던 어깨를 활짝 펴니, 마음속 답답함까지 시원하게 날아가는 기분입니다."
 
 ## 2. 활동을 '이야기'로 전환
 
 활동을 설명하려 하지 말고, **그 활동이 가져온 '변화'와 '에피소드'**를 적으세요.
 
 ❌ 설명조: "오늘은 색종이로 꽃을 만들었습니다."
-✅ 이야기조: "손끝에 닿는 종이의 바스락거리는 소리가 센터를 가득 채웠습니다. 종이 한 장이 예쁜 꽃으로 피어나는 과정은 언제 봐도 마법 같습니다."
+✅ 이야기조: "손끝에 닿는 종이의 바스락거리는 소리가 센터를 가득 채웠습니다. 종이 한 장이 예쁜 꽃으로 변하는 과정은 언제 봐도 마법 같습니다."
 
-## 3. 도입부 다양화 (5가지 유형 중 랜덤 선택)
+## 3. 글 구조
 
-- **Type A (성찰):** 나이 듦, 행복, 가족의 의미에 대한 짧은 단상.
-- **Type B (관찰):** 오늘 센터의 아침 풍경, 밥 짓는 냄새, 웃음소리 등 감각적 묘사.
-- **Type C (질문):** 보호자의 안부를 묻거나 공감을 유도.
-- **Type D (감정):** 오늘의 전반적인 센터 분위기 (활기, 차분함, 따뜻함).
-- **Type E (계절/지역):** ${region} 지역의 날씨/계절과 지역 특색 언급 (5번에 1번 꼴로만 사용).
+**Structure:** Intro (Hook) -> Activity Description -> Professional Benefit -> Outro
+
+활동 관련 키워드가 나오면:
+1. 어르신의 감성적 반응(표정이 아닌 말씀, 목소리, 분위기)
+2. 해당 활동의 전문적 기대효과(치매 예방, 소근육 발달, 인지 기능 등)
+를 자연스럽게 엮어서 서술하세요.
 
 ## 4. 이미지 플레이스홀더 배치
 
@@ -106,14 +151,7 @@ ${userInstructionsSection}
 - [IMAGE_PLACEHOLDER_N]은 문단이 끝나고 **자연스러운 호흡의 쉼표**가 필요한 곳에 무심하게 배치하세요.
 - 순서: [완결된 에세이 문단] → [IMAGE_PLACEHOLDER] → [다음 에세이 문단]
 
-## 5. 전문성 + 감성 결합
-
-활동 관련 키워드가 나오면:
-1. 어르신의 감성적 반응(표정이 아닌 말씀, 목소리, 분위기)
-2. 해당 활동의 전문적 기대효과(치매 예방, 소근육 발달 등)
-를 자연스럽게 엮어서 서술하세요.
-
-## 6. 기본 톤앤매너
+## 5. 기본 톤앤매너
 ${hasStyleReference ? '\n(⚠️ 예시 글이 설정되어 있으므로 예시 글의 문체를 우선합니다)\n' : `
 부드럽고 공손한 '해요체'를 사용하세요. 문단은 3~4줄로 짧게 끊고, 따뜻한 이모지(😊, 🌞, 🌸 등)를 적절히 사용하세요.
 `}
@@ -229,10 +267,13 @@ serve(async (req) => {
       }
     }
     
-    // Generate dynamic system instruction with simplified style config
-    const systemInstruction = getSystemInstruction(dynamicRegion, dynamicCenterName, parsedStyleConfig, writingTonePrompt);
+    // Select random writing persona for this generation
+    const selectedPersona = getRandomPersona();
+    
+    // Generate dynamic system instruction with simplified style config and selected persona
+    const systemInstruction = getSystemInstruction(dynamicRegion, dynamicCenterName, parsedStyleConfig, writingTonePrompt, selectedPersona);
 
-    console.log(`Generating blog for center: ${dynamicCenterName}, region: ${dynamicRegion}, hasReferenceText: ${parsedStyleConfig?.styleReferenceText ? 'yes' : 'no'}, hasCustomPrompt: ${parsedStyleConfig?.customPrompt ? 'yes' : 'no'}`);
+    console.log(`Generating blog for center: ${dynamicCenterName}, region: ${dynamicRegion}, persona: ${selectedPersona.name}, hasReferenceText: ${parsedStyleConfig?.styleReferenceText ? 'yes' : 'no'}, hasCustomPrompt: ${parsedStyleConfig?.customPrompt ? 'yes' : 'no'}`);
 
     // Build multimodal message content
     const userContent: any[] = [
