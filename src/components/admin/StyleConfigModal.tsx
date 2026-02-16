@@ -240,9 +240,9 @@ const StyleConfigModal = ({
                   placeholder="AI가 흉내 내기를 원하는 블로그 글 본문을 통째로 붙여넣으세요.
 
 예시:
-안녕하세요~ 사랑과 정성의 OO주야간보호센터입니다! 🌸
-오늘 하루도 어르신들의 밝은 웃음소리로 가득했답니다.
-아침부터 불어오는 봄바람이 참 좋았는데요..."
+안녕하세요~ 정성과 실력의 OO치과입니다! 🦷
+오늘도 환자분들의 건강한 미소를 위해 최선을 다하고 있어요.
+편안한 진료, 꼼꼼한 상담으로 여러분을 모시겠습니다..."
                   rows={8}
                   className="resize-none text-sm bg-background/50 border-border/50 focus:bg-background transition-colors duration-200"
                 />
@@ -279,9 +279,9 @@ const StyleConfigModal = ({
                   placeholder="전화번호, 필수 해시태그, 또는 특별히 주의해야 할 점 등을 자유롭게 적어주세요.
 
 예시:
-- 글 마지막에 항상 '상담 문의: 010-1234-5678' 넣기
-- #OO동노인돌봄 해시태그 필수 포함
-- '어르신'이라는 표현 대신 '어른신분'으로 통일"
+- 글 마지막에 항상 '상담 문의: 02-1234-5678' 넣기
+- #OO동치과 해시태그 필수 포함
+- '환자분'이라는 표현 사용, 친근하고 전문적인 톤 유지"
                   rows={5}
                   className="resize-none text-sm bg-background/50 border-border/50 focus:bg-background transition-colors duration-200"
                 />

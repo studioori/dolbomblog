@@ -16,7 +16,7 @@ interface ActivityFormProps {
   isLoading: boolean;
 }
 
-const HARDCODED_CENTER_NAME = '의정부 늘봄주야간보호센터';
+const HARDCODED_CENTER_NAME = '행복치과';
 
 const ActivityForm = ({ category, onSubmit, isLoading }: ActivityFormProps) => {
   const categoryInfo = CATEGORIES.find(c => c.id === category)!;
@@ -99,7 +99,7 @@ const ActivityForm = ({ category, onSubmit, isLoading }: ActivityFormProps) => {
           </Label>
           <Input
             id="activityName"
-            placeholder="예: 가을 단풍 색칠하기"
+            placeholder="예: 임플란트 상담"
             value={activityName}
             onChange={(e) => setActivityName(e.target.value)}
             className="h-11"
@@ -118,10 +118,10 @@ const ActivityForm = ({ category, onSubmit, isLoading }: ActivityFormProps) => {
           </div>
         </div>
 
-        {/* 어르신 반응 */}
+        {/* 환자 반응 */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">어르신 반응 (복수 선택 가능)</Label>
+            <Label className="text-sm font-medium">환자 반응 (복수 선택 가능)</Label>
             <Button
               variant="ghost"
               size="sm"
@@ -160,7 +160,7 @@ const ActivityForm = ({ category, onSubmit, isLoading }: ActivityFormProps) => {
 
         {/* 기대효과 */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium">활동 효과 (선택)</Label>
+          <Label className="text-sm font-medium">시술 효과 (선택)</Label>
           <div className="flex flex-wrap gap-2">
             {categoryInfo.effects.map((effect) => (
               <Badge
