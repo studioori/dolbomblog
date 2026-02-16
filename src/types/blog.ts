@@ -21,6 +21,7 @@ export interface BlogInput {
   effects: string[];
   customDetails?: string;
   centerName?: string;
+  region?: string;
   contactInfo?: string;
 }
 

@@ -1,7 +1,8 @@
 import { type BlogInput, type GeneratedBlog, CATEGORIES } from '@/types/blog';
 
-// '의정부 늘봄주야간보호센터' 공식 블로그 글 생성기
+// 돌봄 블로그 글 생성기
 // 'Storyteller' Protocol - 10년차 베테랑 사회복지사의 감성 에세이 스타일
+// 각 센터의 profile 정보(centerName, region)를 기반으로 동적으로 콘텐츠 생성
 
 const getRandomItem = <T>(arr: T[]): T => {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -10,14 +11,14 @@ const getRandomItem = <T>(arr: T[]): T => {
 // ============================================================
 // 1. 🎲 Random Opening Strategy (도입부 랜덤 선택 - 5가지 스타일)
 // ============================================================
-const generateRandomOpening = (): string => {
+const generateRandomOpening = (centerName: string): string => {
   const styles = [
     // Style A: 청각적 시작 - 센터 안에서 들리는 소리로 시작
     () => {
       const openings = [
-        `또각또각, 지팡이 소리가 현관에서부터 들려왔어요.\n\n"왔어요~" 하시며 문을 여시는 어르신. 그 뒤로 우르르 들어오시는 분들의 웃음소리가 센터 안을 가득 채웠답니다. 오늘도 이렇게, 의정부 늘봄주야간보호센터의 하루가 시작되었어요.`,
-        `"선생님, 오늘 뭐 해요~?"\n\n아침부터 의정부 늘봄주야간보호센터 문을 열자마자 들려오는 그 익숙한 목소리. 호기심 가득한 눈으로 두리번거리시는 어르신들 모습에 저도 모르게 미소가 번졌답니다. 복도에 울려 퍼지는 발자국 소리, 수다 소리, 간간이 터지는 웃음소리... 오늘도 활기찬 하루가 될 것 같았어요.`,
-        `거실에서 누군가의 노래 소리가 흘러나왔어요.\n\n"♪ 동백 아가씨~" 흥얼거리시며 창가에 앉으신 어르신. 그 노래에 맞춰 어깨를 들썩이시는 분들. 라디오가 아니라 어르신들이 만들어내시는 라이브 음악이랍니다. 이런 순간들이 모여 의정부 늘봄주야간보호센터의 하루를 채워가지요.`,
+        `또각또각, 지팡이 소리가 현관에서부터 들려왔어요.\n\n"왔어요~" 하시며 문을 여시는 어르신. 그 뒤로 우르르 들어오시는 분들의 웃음소리가 센터 안을 가득 채웠답니다. 오늘도 이렇게, ${centerName}의 하루가 시작되었어요.`,
+        `"선생님, 오늘 뭐 해요~?"\n\n아침부터 ${centerName} 문을 열자마자 들려오는 그 익숙한 목소리. 호기심 가득한 눈으로 두리번거리시는 어르신들 모습에 저도 모르게 미소가 번졌답니다. 복도에 울려 퍼지는 발자국 소리, 수다 소리, 간간이 터지는 웃음소리... 오늘도 활기찬 하루가 될 것 같았어요.`,
+        `거실에서 누군가의 노래 소리가 흘러나왔어요.\n\n"♪ 동백 아가씨~" 흥얼거리시며 창가에 앉으신 어르신. 그 노래에 맞춰 어깨를 들썩이시는 분들. 라디오가 아니라 어르신들이 만들어내시는 라이브 음악이랍니다. 이런 순간들이 모여 ${centerName}의 하루를 채워가지요.`,
       ];
       return getRandomItem(openings);
     },
@@ -179,10 +180,11 @@ const extractFactsFromInput = (input: string): ExtractedFacts => {
 // 추출된 팩트를 기반으로 에피소드 창작 (문맥 용해)
 const meltFactsIntoNarrative = (
   facts: ExtractedFacts, 
-  activityName: string
+  activityName: string,
+  centerName: string
 ): string => {
   let episode = '\n\n---\n\n';
-  episode += '오늘 의정부 늘봄주야간보호센터에서 가장 기억에 남는 순간을 이야기해 드릴게요.\n\n';
+  episode += `오늘 ${centerName}에서 가장 기억에 남는 순간을 이야기해 드릴게요.\n\n`;
 
   const elderDisplay = facts.elderName ? `**${facts.elderName} 어르신**` : '한 어르신';
   const elderShort = facts.elderName || '어르신';
@@ -191,7 +193,7 @@ const meltFactsIntoNarrative = (
   episode += `${elderDisplay} 이야기를 안 할 수가 없어요.\n\n`;
   
   if (facts.nickname) {
-    episode += `오늘 이 분은 의정부 늘봄주야간보호센터의 '${facts.nickname}'라 불리게 되었답니다. 하지만 처음부터 그러셨던 건 아니에요. 평소에는 조용하시고 차분하신 분이거든요. 늘 구석 자리에서 다른 분들 하시는 걸 지켜보시곤 했지요.\n\n`;
+    episode += `오늘 이 분은 ${centerName}의 '${facts.nickname}'라 불리게 되었답니다. 하지만 처음부터 그러셨던 건 아니에요. 평소에는 조용하시고 차분하신 분이거든요. 늘 구석 자리에서 다른 분들 하시는 걸 지켜보시곤 했지요.\n\n`;
   } else {
     episode += `평소 조용하시고 차분하신 분이세요. 말씀도 많이 안 하시고, 늘 구석 자리에서 다른 분들 하시는 걸 바라보시곤 했지요. 그래서 오늘 일은 정말 깜짝 놀랐답니다.\n\n`;
   }
@@ -239,7 +241,8 @@ const meltFactsIntoNarrative = (
 const generateHighlightEpisode = (
   customDetails: string, 
   reactions: string[], 
-  activityName: string
+  activityName: string,
+  centerName: string
 ): string => {
   if (!customDetails || !customDetails.trim()) {
     return generateDefaultEpisode(reactions, activityName);
@@ -249,7 +252,7 @@ const generateHighlightEpisode = (
   const facts = extractFactsFromInput(customDetails);
   
   // 팩트 기반으로 에피소드 창작 (원본 텍스트 사용 안 함)
-  let episode = meltFactsIntoNarrative(facts, activityName);
+  let episode = meltFactsIntoNarrative(facts, activityName, centerName);
   
   const elderShort = facts.elderName || '어르신';
 
@@ -316,13 +319,13 @@ const generateDefaultEpisode = (reactions: string[], activityName: string): stri
 // ============================================================
 // 4. 마무리 (20%) - 여운, 어르신 멘트 인용, 편지
 // ============================================================
-const generateClosing = (activityName: string): string => {
+const generateClosing = (activityName: string, centerName: string): string => {
   const closings = [
-    `모든 활동이 끝나고, 어르신들이 삼삼오오 모여 이야기를 나누셨어요.\n\n"오늘 진짜 재밌었어" "다음에도 이거 하자" 하시는 목소리가 여기저기서 들려왔지요. 한 어르신께서 제 손을 꼭 잡으시며 말씀하셨어요.\n\n"선생님, 고마워요. 이 나이에 이런 호강을 다 하네."\n\n그 따뜻한 손의 온기가 아직도 느껴지는 것 같아요. 이 일을 하면서 가장 보람찬 순간은, 바로 이런 순간이랍니다.\n\n---\n\n보호자님, 오늘도 어르신께서 건강하고 즐겁게 지내셨어요.\n\n의정부 늘봄주야간보호센터에서는 이렇게, 어르신 한 분 한 분의 하루가 조금이라도 더 따뜻하고 행복할 수 있도록 늘 곁에서 세심히 살피고 있답니다.\n\n우리 부모님의 하루가 궁금하시다면, 언제든 놀러 오세요. 차 한 잔 대접해 드리며, 오늘의 이야기를 들려드릴게요. ☕`,
+    `모든 활동이 끝나고, 어르신들이 삼삼오오 모여 이야기를 나누셨어요.\n\n"오늘 진짜 재밌었어" "다음에도 이거 하자" 하시는 목소리가 여기저기서 들려왔지요. 한 어르신께서 제 손을 꼭 잡으시며 말씀하셨어요.\n\n"선생님, 고마워요. 이 나이에 이런 호강을 다 하네."\n\n그 따뜻한 손의 온기가 아직도 느껴지는 것 같아요. 이 일을 하면서 가장 보람찬 순간은, 바로 이런 순간이랍니다.\n\n---\n\n보호자님, 오늘도 어르신께서 건강하고 즐겁게 지내셨어요.\n\n${centerName}에서는 이렇게, 어르신 한 분 한 분의 하루가 조금이라도 더 따뜻하고 행복할 수 있도록 늘 곁에서 세심히 살피고 있답니다.\n\n우리 부모님의 하루가 궁금하시다면, 언제든 놀러 오세요. 차 한 잔 대접해 드리며, 오늘의 이야기를 들려드릴게요. ☕`,
 
-    `하루가 저물어갈 때쯤, 한 어르신께서 창밖을 바라보시며 말씀하셨어요.\n\n"여기 오니까 하루가 금방 가. 집에만 있으면 시간이 왜 이렇게 안 가던지..."\n\n그 말씀에 저도 모르게 코끝이 찡해졌어요. 우리가 하는 일이, 이렇게 누군가의 시간을 채워드리는 것이구나 싶어서요.\n\n---\n\n보호자님께 전하고 싶은 말이 있어요.\n\n바쁘신 와중에 부모님 걱정 많이 되시죠? 저희도 그 마음 잘 알아요. 그래서 더 열심히, 더 정성껏 모시고 있답니다.\n\n의정부 늘봄주야간보호센터에서 어르신들과 함께 보낸 오늘 하루, 사진으로, 영상으로, 그리고 이 글로 전해드립니다.\n\n궁금한 점이 있으시면 언제든 연락 주세요. 🌸`,
+    `하루가 저물어갈 때쯤, 한 어르신께서 창밖을 바라보시며 말씀하셨어요.\n\n"여기 오니까 하루가 금방 가. 집에만 있으면 시간이 왜 이렇게 안 가던지..."\n\n그 말씀에 저도 모르게 코끝이 찡해졌어요. 우리가 하는 일이, 이렇게 누군가의 시간을 채워드리는 것이구나 싶어서요.\n\n---\n\n보호자님께 전하고 싶은 말이 있어요.\n\n바쁘신 와중에 부모님 걱정 많이 되시죠? 저희도 그 마음 잘 알아요. 그래서 더 열심히, 더 정성껏 모시고 있답니다.\n\n${centerName}에서 어르신들과 함께 보낸 오늘 하루, 사진으로, 영상으로, 그리고 이 글로 전해드립니다.\n\n궁금한 점이 있으시면 언제든 연락 주세요. 🌸`,
 
-    `귀가 시간이 다가오자, 어르신들이 아쉬운 표정을 감추지 못하셨어요.\n\n"내일 또 오면 되지, 뭐" 하시면서도 문 앞에서 자꾸 뒤돌아보시더라고요. 손 흔들어 인사하시는 그 모습, 매일 봐도 마음이 따뜻해진답니다.\n\n한 어르신께서 나가시며 말씀하셨어요.\n\n"선생님들 덕분에 매일이 기다려져요."\n\n그 한마디가 저희에겐 내일도 열심히 해야겠다는 원동력이 된답니다.\n\n---\n\n보호자님, 오늘 하루도 고생 많으셨어요.\n\n어르신들의 미소를 지키는 일, 저희 의정부 늘봄주야간보호센터가 함께 하겠습니다.\n\n언제든 편하게 방문해 주세요. 어르신들의 생생한 일상을 직접 보여드릴게요. 🌿`,
+    `귀가 시간이 다가오자, 어르신들이 아쉬운 표정을 감추지 못하셨어요.\n\n"내일 또 오면 되지, 뭐" 하시면서도 문 앞에서 자꾸 뒤돌아보시더라고요. 손 흔들어 인사하시는 그 모습, 매일 봐도 마음이 따뜻해진답니다.\n\n한 어르신께서 나가시며 말씀하셨어요.\n\n"선생님들 덕분에 매일이 기다려져요."\n\n그 한마디가 저희에겐 내일도 열심히 해야겠다는 원동력이 된답니다.\n\n---\n\n보호자님, 오늘 하루도 고생 많으셨어요.\n\n어르신들의 미소를 지키는 일, 저희 ${centerName}가 함께 하겠습니다.\n\n언제든 편하게 방문해 주세요. 어르신들의 생생한 일상을 직접 보여드릴게요. 🌿`,
   ];
 
   return '\n\n---\n\n' + getRandomItem(closings);
@@ -332,10 +335,12 @@ const generateClosing = (activityName: string): string => {
 // Main: 블로그 콘텐츠 생성
 // ============================================================
 export const generateBlogContent = async (input: BlogInput): Promise<GeneratedBlog> => {
-  const centerName = '의정부 늘봄주야간보호센터';
+  // 센터명과 지역 정보 (동적 할당)
+  const centerName = input.centerName || '우리 센터';
+  const region = input.region || '';
   
   // 1. 도입 (20%) - 랜덤 5가지 스타일
-  const intro = generateRandomOpening();
+  const intro = generateRandomOpening(centerName);
 
   // 2. 전개 1 - 준비 과정 (20%)
   const preparation = generatePreparationPhase(input.activityName, input.category);
@@ -344,11 +349,12 @@ export const generateBlogContent = async (input: BlogInput): Promise<GeneratedBl
   const highlight = generateHighlightEpisode(
     input.customDetails, 
     input.reactions, 
-    input.activityName
+    input.activityName,
+    centerName
   );
 
   // 4. 마무리 (20%)
-  const closing = generateClosing(input.activityName);
+  const closing = generateClosing(input.activityName, centerName);
 
   // 제목 생성
   const titleOptions = [
@@ -363,13 +369,14 @@ export const generateBlogContent = async (input: BlogInput): Promise<GeneratedBl
   // 본문 조합 (2000자 이상)
   const content = `${intro}${preparation}${highlight}${closing}`;
 
-  // 해시태그 (지역 키워드 강화)
+  // 해시태그 (지역 및 센터명 기반 동적 생성)
+  const centerNameNoSpace = centerName.replace(/\s/g, '');
   const hashtags = [
-    `#${centerName.replace(/\s/g, '')}`,
-    '#의정부주야간보호',
-    '#의정부노인돌봄',
+    `#${centerNameNoSpace}`,
+    region ? `#${region}주야간보호` : '#주야간보호',
+    region ? `#${region}노인돌봄` : '#노인돌봄',
     `#${input.activityName.replace(/\s/g, '')}`,
-    '#의정부데이케어',
+    region ? `#${region}데이케어` : '#데이케어',
     '#어르신일상',
     '#따뜻한돌봄',
     '#노인복지',
