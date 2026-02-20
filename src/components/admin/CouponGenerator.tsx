@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation } from 'convex/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,19 +11,30 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Ticket, Copy, Check, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
+
+// Convex 쿼리/뮤테이션 문자열
+const queries = {
+  getAllCoupons: 'coupons:getAllCoupons' as const,
+};
+
+const mutations = {
+  createCoupons: 'coupons:createCoupons' as const,
+};
 
 interface Coupon {
-  id: string;
+  _id: string;
   code: string;
   duration_months: number;
   is_used: boolean;
   used_by: string | null;
-  used_at: string | null;
-  created_at: string;
+  used_at: number | null;
+  created_at: number;
 }
 
 const CouponGenerator = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [quantity, setQuantity] = useState('1');
   const [durationMonths, setDurationMonths] = useState('1');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -31,9 +42,16 @@ const CouponGenerator = () => {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   
   // Coupon list state
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [isLoadingCoupons, setIsLoadingCoupons] = useState(false);
   const [showCouponList, setShowCouponList] = useState(false);
+
+  // Fetch coupons
+  const { data: couponsData, isLoading: isLoadingCoupons, refetch: refetchCoupons } = useQuery(
+    queries.getAllCoupons as any,
+    user?.id ? { adminUserId: user.id, includeUsed: true } : 'skip'
+  );
+
+  // Create coupons mutation
+  const createCouponsMutation = useMutation(mutations.createCoupons as any);
 
   // Generate random coupon code
   const generateRandomCode = (): string => {
@@ -65,20 +83,19 @@ const CouponGenerator = () => {
       return;
     }
 
+    if (!user?.id) {
+      toast({
+        title: '로그인 필요',
+        description: '로그인이 필요합니다.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsGenerating(true);
     setGeneratedCodes([]);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: '로그인 필요',
-          description: '로그인이 필요합니다.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
       const codes: string[] = [];
       const couponsToInsert = [];
 
@@ -92,26 +109,29 @@ const CouponGenerator = () => {
         couponsToInsert.push({
           code,
           duration_months: months,
-          created_by: session.user.id,
         });
       }
 
-      const { error } = await supabase
-        .from('coupons')
-        .insert(couponsToInsert);
+      const result = await createCouponsMutation({
+        adminUserId: user.id,
+        coupons: couponsToInsert,
+      });
 
-      if (error) throw error;
+      if (result.errorCount > 0) {
+        toast({
+          title: '일부 생성 실패',
+          description: `${result.errorCount}개의 쿠폰 생성에 실패했습니다.`,
+          variant: 'destructive',
+        });
+      }
 
       setGeneratedCodes(codes);
       toast({
         title: '쿠폰 생성 완료',
-        description: `${qty}개의 ${months}개월 이용권이 생성되었습니다.`,
+        description: `${result.successCount}개의 ${months}개월 이용권이 생성되었습니다.`,
       });
 
-      // Refresh coupon list if visible
-      if (showCouponList) {
-        fetchCoupons();
-      }
+      // Refresh coupon list if visible (Convex는 반응형이므로 자동으로 업데이트됨)
     } catch (error) {
       console.error('Error generating coupons:', error);
       toast({
@@ -158,35 +178,19 @@ const CouponGenerator = () => {
     }
   };
 
-  const fetchCoupons = async () => {
-    setIsLoadingCoupons(true);
-    try {
-      const { data, error } = await supabase
-        .from('coupons')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (error) throw error;
-      setCoupons(data || []);
-    } catch (error) {
-      console.error('Error fetching coupons:', error);
-      toast({
-        title: '조회 실패',
-        description: '쿠폰 목록을 불러오는데 실패했습니다.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoadingCoupons(false);
-    }
-  };
-
   const handleShowCouponList = () => {
     setShowCouponList(!showCouponList);
-    if (!showCouponList) {
-      fetchCoupons();
-    }
   };
+
+  const coupons: Coupon[] = (couponsData || []).map((c: any) => ({
+    _id: c._id,
+    code: c.code,
+    duration_months: c.duration_months,
+    is_used: c.is_used,
+    used_by: c.used_by,
+    used_at: c.used_at,
+    created_at: c.created_at,
+  }));
 
   return (
     <div className="space-y-6">
@@ -302,9 +306,6 @@ const CouponGenerator = () => {
               <CardTitle className="text-lg">쿠폰 목록</CardTitle>
               <CardDescription>발급된 쿠폰 현황</CardDescription>
             </div>
-            <Button variant="ghost" size="sm" onClick={fetchCoupons} disabled={isLoadingCoupons}>
-              <RefreshCw className={`w-4 h-4 ${isLoadingCoupons ? 'animate-spin' : ''}`} />
-            </Button>
           </CardHeader>
           <CardContent className="p-0">
             {isLoadingCoupons ? (
@@ -327,7 +328,7 @@ const CouponGenerator = () => {
                 </TableHeader>
                 <TableBody>
                   {coupons.map((coupon) => (
-                    <TableRow key={coupon.id}>
+                    <TableRow key={coupon._id}>
                       <TableCell>
                         <code className="font-mono text-sm">{coupon.code}</code>
                       </TableCell>

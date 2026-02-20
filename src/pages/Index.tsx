@@ -11,14 +11,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { usePhotoBlog } from '@/hooks/usePhotoBlog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, AlertCircle, ImageIcon, Lock } from 'lucide-react';
+import { Loader2, Sparkles, AlertCircle, ImageIcon, Lock, LogOut } from 'lucide-react';
 
 const Index = () => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [simulationProfile, setSimulationProfile] = useState<SimulationProfile | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, profile, canGenerate, isLoading: authLoading, isAdmin } = useAuth();
+  const { user, profile, canGenerate, isLoading: authLoading, isAdmin, isDemo, endDemo } = useAuth();
   
   const {
     isUploading,
@@ -32,15 +32,16 @@ const Index = () => {
 
   const isLoading = isUploading || isGenerating;
 
-  // Redirect to auth if not logged in
+  // Redirect to auth if not logged in (allow demo mode)
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !user && !isDemo) {
       navigate('/auth');
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, isDemo, navigate]);
 
   const handleGenerate = async () => {
-    if (!user) {
+    // Allow demo mode without login
+    if (!isDemo && !user) {
       toast({
         title: '로그인이 필요합니다',
         description: '서비스를 이용하려면 먼저 로그인해주세요.',
@@ -50,8 +51,8 @@ const Index = () => {
       return;
     }
 
-    // Admins bypass approval check
-    if (!isAdmin && !profile?.is_active) {
+    // Admins and demo mode bypass approval check
+    if (!isAdmin && !isDemo && !profile?.is_active) {
       toast({
         title: '서비스 이용 불가',
         description: '관리자 승인 후 이용할 수 있습니다.',
@@ -60,8 +61,8 @@ const Index = () => {
       return;
     }
 
-    // Admins bypass usage limit check
-    if (!isAdmin && !canGenerate) {
+    // Admins and demo mode bypass usage limit check
+    if (!isAdmin && !isDemo && !canGenerate) {
       toast({
         title: '이용 횟수 초과',
         description: '이번 달 이용 횟수를 초과했습니다. 관리자에게 문의하세요.',
@@ -97,14 +98,42 @@ const Index = () => {
     );
   }
 
-  // Show inactive notice (not for admins)
-  const showInactiveNotice = user && profile && !profile.is_active && !isAdmin;
-  const showLimitReached = user && profile && profile.is_active && !canGenerate && !isAdmin;
+  // Show inactive notice (not for admins or demo mode)
+  const showInactiveNotice = user && profile && !profile.is_active && !isAdmin && !isDemo;
+  const showLimitReached = user && profile && profile.is_active && !canGenerate && !isAdmin && !isDemo;
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
+      {/* 데모 모드 배너 */}
+      {isDemo && (
+        <div className="bg-gradient-to-r from-[#041F1E] to-[#083F3E] border-b border-[#F7DBA7]/20">
+          <div className="max-w-2xl mx-auto px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#F7DBA7]" />
+                <span className="text-sm text-[#F7DBA7] font-medium">
+                  데모 모드 활성화
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  endDemo();
+                  navigate('/auth');
+                }}
+                className="h-8 px-3 border-[#F7DBA7]/30 text-[#F7DBA7] hover:bg-[#F7DBA7]/10 text-xs"
+              >
+                <LogOut className="w-3 h-3 mr-1.5" />
+                데모 종료
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="max-w-2xl mx-auto px-4 py-6 sm:py-10 space-y-6 sm:space-y-10">
         {/* 관리자 시뮬레이션 모드 */}
         {isAdmin && (
@@ -136,29 +165,30 @@ const Index = () => {
         {/* 히어로 섹션 */}
         {!generatedBlog && (
           <div className="text-center space-y-4 sm:space-y-5 py-6 sm:py-8 animate-fade-in">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-2xl sm:rounded-3xl bg-gradient-forest flex items-center justify-center shadow-elevated group cursor-default transition-all duration-500 hover:shadow-glow hover:scale-105 ring-4 ring-primary/10">
-              <ImageIcon className="w-7 h-7 sm:w-9 sm:h-9 text-primary-foreground drop-shadow-md transition-transform duration-300 group-hover:scale-110" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-2xl sm:rounded-3xl bg-gradient-forest flex items-center justify-center shadow-elevated group cursor-default transition-all duration-500 hover:shadow-glow-forest hover:scale-105 ring-4 ring-primary/10">
+              <span className="text-3xl sm:text-4xl drop-shadow-md transition-transform duration-300 group-hover:scale-110">🦷</span>
             </div>
             <div className="space-y-2 sm:space-y-3">
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
-                사진으로 <span className="text-gradient-gold inline-block transition-transform duration-300 hover:scale-105">따뜻한 이야기</span>를 만들어보세요
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight font-display">
+                사진으로 <span className="text-gradient-gold inline-block transition-transform duration-300 hover:scale-105">건강한 이야기</span>를 만들어보세요
               </h2>
               <p className="text-sm sm:text-base text-muted-foreground w-full leading-relaxed px-4 sm:px-0">
-                활동 사진을 업로드하고 키워드를 입력하면,<br className="hidden sm:block"/>
-                AI가 사진과 글이 어우러진 블로그 포스팅을 자동으로 작성해 드립니다.
+                병원 활동 사진을 업로드하면,<br className="hidden sm:block"/>
+                AI가 환자들에게 전하고 싶은 따뜻한 블로그 글을 작성해 드립니다.
               </p>
             </div>
           </div>
         )}
 
         {/* 사진 업로더 */}
-        {!generatedBlog && canGenerate && (
+        {!generatedBlog && (canGenerate || isDemo) && (
           <div className="space-y-5 animate-fade-in" style={{ animationDelay: '0.15s', animationFillMode: 'backwards' }}>
             <PhotoUploader
               photos={photos}
               onPhotosChange={setPhotos}
               isLoading={isLoading}
-              maxPhotos={simulationProfile?.max_image_count ?? profile?.max_image_count ?? 5}
+              maxPhotos={5}
+              department={profile?.department}
             />
 
             {/* 에러 메시지 */}
@@ -219,21 +249,21 @@ const Index = () => {
           </div>
         )}
 
-        {/* 이용권 등록 섹션 */}
-        {!generatedBlog && user && !isAdmin && (
+        {/* 이용권 등록 섹션 - 데모 모드에서는 숨김 */}
+        {!generatedBlog && user && !isAdmin && !isDemo && (
           <CouponRedeem />
         )}
 
-        {/* 최근 생성된 글 목록 */}
-        {!generatedBlog && (
+        {/* 최근 생성된 글 목록 - 데모 모드에서는 숨김, 일반 사용자는 본인 글만, 관리자는 모든 글 표시 */}
+        {!generatedBlog && !isDemo && (
           <RecentPostsList />
         )}
       </main>
 
       {/* 푸터 */}
       <footer className="py-10 text-center text-sm text-muted-foreground border-t border-border/30 transition-colors duration-300 hover:border-border/50">
-        <p className="font-medium transition-colors duration-200 hover:text-foreground/80">© 2025 studioori</p>
-        <p className="mt-1.5 text-muted-foreground/80">어르신의 하루를 따뜻하게 전합니다 💚</p>
+        <p className="font-medium transition-colors duration-200 hover:text-foreground/80">© 2025 Mediblog 🏥</p>
+        <p className="mt-1.5 text-muted-foreground/80">환자들에게 다가가는 병원 소통 플랫폼</p>
       </footer>
     </div>
   );

@@ -1,7 +1,18 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useAction, useMutation } from 'convex/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { type PhotoItem } from '@/components/PhotoUploader';
+
+// Convex 함수 이름 (codegen 전 사용)
+const actions = {
+  generateBlog: 'generateBlog:generateBlog' as const,
+};
+
+const mutations = {
+  createPost: 'posts:createPost' as const,
+  incrementUsage: 'users:incrementUsage' as const,
+  logActivity: 'users:logActivity' as const,
+};
 
 interface GeneratedBlog {
   title: string;
@@ -13,8 +24,19 @@ interface SimulationProfile {
   id: string;
   center_name: string;
   region: string;
+  department?: string;
   writing_tone_prompt: string | null;
   style_config: any;
+  // New style settings
+  writing_style?: string;
+  content_length?: string;
+  use_emoji?: boolean;
+  // Demo mode specific fields
+  is_active?: boolean;
+  current_usage?: number;
+  monthly_limit?: number;
+  plan_tier?: 'free' | 'basic' | 'premium';
+  max_image_count?: number;
 }
 
 interface UsePhotoBlogOptions {
@@ -37,37 +59,40 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   const [generatedBlog, setGeneratedBlog] = useState<GeneratedBlog | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { user, profile, refreshProfile, isAdmin } = useAuth();
+  const { user, profile, refreshProfile, isAdmin, isDemo } = useAuth();
   
   const simulationProfile = options?.simulationProfile;
 
-  const uploadPhotos = async (photos: PhotoItem[]): Promise<string[]> => {
+  // Convex mutations and actions
+  const generateBlogAction = useAction(actions.generateBlog as any);
+  const createPostMutation = useMutation(mutations.createPost as any);
+  const incrementUsageMutation = useMutation(mutations.incrementUsage as any);
+  const logActivityMutation = useMutation(mutations.logActivity as any);
+
+  // TODO: 추후 이미지 업로드 구현 (현재는 로컬 URL 또는 data URL 사용)
+  const getPhotoUrls = async (photos: PhotoItem[]): Promise<string[]> => {
+    // 임시: 파일을 data URL로 변환하여 사용
     const urls: string[] = [];
-    const sessionId = `session-${Date.now()}`;
-
-    for (let i = 0; i < photos.length; i++) {
-      const photo = photos[i];
-      const fileExt = photo.file.name.split('.').pop();
-      const fileName = `${sessionId}/${i + 1}-${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('daily-photos')
-        .upload(fileName, photo.file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw new Error(`사진 ${i + 1} 업로드 실패: ${uploadError.message}`);
+    
+    for (const photo of photos) {
+      // 이미 URL인 경우 그대로 사용
+      if (photo.preview && photo.preview.startsWith('http')) {
+        urls.push(photo.preview);
+        continue;
       }
-
-      const { data: urlData } = supabase.storage
-        .from('daily-photos')
-        .getPublicUrl(fileName);
-
-      urls.push(urlData.publicUrl);
+      
+      // File 객체를 data URL로 변환
+      if (photo.file) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(photo.file);
+        });
+        urls.push(dataUrl);
+      }
     }
-
+    
     return urls;
   };
 
@@ -77,7 +102,8 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
       return;
     }
 
-    if (!user || !profile) {
+    // Demo mode allows generation without login
+    if (!isDemo && (!user || !profile)) {
       setError('로그인이 필요합니다.');
       return;
     }
@@ -86,15 +112,14 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
     setIsUploading(true);
 
     try {
-      // Step 1: Upload photos to storage
-      const urls = await uploadPhotos(photos);
+      // Step 1: Get photo URLs (temporary: using data URLs)
+      const urls = await getPhotoUrls(photos);
       setUploadedUrls(urls);
 
       setIsUploading(false);
       setIsGenerating(true);
 
-      // Step 2: Call AI vision function with center name
-      // Use simulation profile if admin is testing, otherwise use own profile
+      // Step 2: Use simulation profile if admin is testing, otherwise use own profile
       const targetProfile = simulationProfile || profile;
       
       const photosData = photos.map((photo, index) => ({
@@ -108,54 +133,58 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
       const processedTonePrompt = (targetProfile.writing_tone_prompt || '')
         .replace(/\{\{CURRENT_DATE\}\}/g, currentDateStr);
 
-      const { data, error: fnError } = await supabase.functions.invoke('generate-blog-vision', {
-        body: { 
-          photos: photosData, 
-          centerName: targetProfile.center_name,
-          region: targetProfile.region || '',
-          writingTonePrompt: processedTonePrompt || null,
-          styleConfig: (targetProfile as any).style_config || null
-        },
+      // Step 3: Call Convex action for blog generation
+      const data = await generateBlogAction({
+        photos: photosData,
+        centerName: targetProfile.center_name,
+        region: targetProfile.region || '',
+        department: targetProfile.department || undefined,
+        writingTonePrompt: processedTonePrompt || undefined,
+        styleConfig: (targetProfile as any).style_config || undefined,
+        // New style settings
+        writingStyle: targetProfile.writing_style || undefined,
+        contentLength: targetProfile.content_length || undefined,
+        useEmoji: targetProfile.use_emoji !== undefined ? targetProfile.use_emoji : undefined,
       });
 
-      if (fnError) {
-        throw new Error(fnError.message || '블로그 생성 중 오류가 발생했습니다.');
-      }
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      const blogData = {
+      const blogData: GeneratedBlog = {
         title: data.title || '오늘 하루도 따뜻했습니다',
         content: data.content || '',
-        hashtags: data.hashtags || ['#늘봄주야간보호센터'],
+        hashtags: data.hashtags || ['#서울치과의원'],
       };
 
       setGeneratedBlog(blogData);
 
-      // Save to database for 24h history
-      const fullContent = `${blogData.title}\n\n${blogData.content}\n\n${blogData.hashtags.join(' ')}`;
-      
-      const { error: saveError } = await supabase
-        .from('generated_posts')
-        .insert({
-          content: fullContent,
-          image_paths: urls,
-          user_id: user.id,
-        });
+      // Step 4: Save to database using Convex mutation (skip in demo mode)
+      if (!isDemo && user) {
+        const fullContent = `${blogData.title}\n\n${blogData.content}\n\n${blogData.hashtags.join(' ')}`;
 
-      if (saveError) {
-        console.warn('Failed to save post to history:', saveError);
+        try {
+          await createPostMutation({
+            userId: user.id,
+            content: fullContent,
+            title: blogData.title,
+            imagePaths: urls,
+            status: 'draft',
+          });
+        } catch (saveError) {
+          console.warn('Failed to save post to history:', saveError);
+        }
+
+        // Step 5: Increment usage count and log activity
+        try {
+          await incrementUsageMutation({ userId: user.id });
+          await logActivityMutation({
+            userId: user.id,
+            actionType: 'GENERATE_POST',
+          });
+        } catch (usageError) {
+          console.warn('Failed to update usage or log activity:', usageError);
+        }
+
+        // Refresh profile to get updated usage count
+        refreshProfile();
       }
-
-      // Increment usage count and log activity
-      await supabase.rpc('increment_usage', { _user_id: user.id });
-      await supabase.from('activity_logs').insert({
-        user_id: user.id,
-        action_type: 'GENERATE_POST',
-      });
-      refreshProfile();
 
     } catch (err) {
       console.error('Error in uploadAndGenerate:', err);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useMutation } from 'convex/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,9 @@ const CouponRedeem = ({ onRedeemSuccess }: CouponRedeemProps) => {
   const [code, setCode] = useState('');
   const [isRedeeming, setIsRedeeming] = useState(false);
 
+  // Convex mutation
+  const redeemCoupon = useMutation('coupons:redeemCoupon' as any);
+
   const handleRedeem = async () => {
     if (!code.trim()) {
       toast({
@@ -32,37 +35,28 @@ const CouponRedeem = ({ onRedeemSuccess }: CouponRedeemProps) => {
       return;
     }
 
+    if (!profile?.id) {
+      toast({
+        title: '로그인 필요',
+        description: '로그인이 필요합니다.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsRedeeming(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: '로그인 필요',
-          description: '로그인이 필요합니다.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const response = await supabase.functions.invoke('redeem-coupon', {
-        body: { code: code.trim() },
+      const result = await redeemCoupon({
+        userId: profile.id,
+        code: code.trim(),
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      if (response.data?.error) {
-        throw new Error(response.data.error);
-      }
-
-      const { duration_months, new_expiry_date } = response.data;
-      const expiryDate = new Date(new_expiry_date);
+      const expiryDate = new Date(result.newExpiresAt);
       
       toast({
         title: '🎉 이용권 등록 완료!',
-        description: `이용 기간이 ${duration_months}개월 연장되었습니다! 만료일: ${format(expiryDate, 'yyyy년 MM월 dd일', { locale: ko })}`,
+        description: `이용 기간이 ${result.durationMonths}개월 연장되었습니다! 만료일: ${format(expiryDate, 'yyyy년 MM월 dd일', { locale: ko })}`,
       });
 
       setCode('');

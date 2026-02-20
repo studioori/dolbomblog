@@ -1,15 +1,22 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from 'convex/react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, FlaskConical, X, Building2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+
+// Convex 쿼리 문자열
+const queries = {
+  getAdminUserIds: 'admin:getAdminUserIds' as const,
+  getAllProfiles: 'admin:getAllProfiles' as const,
+};
 
 export interface SimulationProfile {
   id: string;
   center_name: string;
   region: string;
+  department?: string;
   writing_tone_prompt: string | null;
   style_config: any;
   max_image_count: number;
@@ -21,42 +28,31 @@ interface AdminSimulationBarProps {
 }
 
 const AdminSimulationBar = ({ onProfileSelect, selectedProfile }: AdminSimulationBarProps) => {
-  const [profiles, setProfiles] = useState<SimulationProfile[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
-  useEffect(() => {
-    fetchProfiles();
-  }, []);
+  // Fetch admin user IDs
+  const adminUserIds = useQuery(queries.getAdminUserIds as any);
 
-  const fetchProfiles = async () => {
-    setIsLoading(true);
-    try {
-      // Get admin user IDs to exclude
-      const { data: adminRoles } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'admin');
+  // Fetch all active profiles
+  const allProfiles = useQuery(
+    queries.getAllProfiles as any,
+    user?.id ? { adminUserId: user.id } : 'skip'
+  );
 
-      const adminIds = new Set(adminRoles?.map(r => r.user_id) || []);
+  const isLoading = adminUserIds === undefined || allProfiles === undefined;
 
-      // Fetch non-admin profiles
-      const { data: profilesData, error } = await supabase
-        .from('profiles')
-        .select('id, center_name, region, writing_tone_prompt, style_config, max_image_count')
-        .eq('is_active', true)
-        .order('center_name');
-
-      if (error) throw error;
-
-      // Filter out admin profiles
-      const clientProfiles = (profilesData || []).filter(p => !adminIds.has(p.id));
-      setProfiles(clientProfiles);
-    } catch (error) {
-      console.error('Error fetching profiles:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Filter active profiles and exclude admins
+  const profiles: SimulationProfile[] = (allProfiles || [])
+    .filter(p => p.is_active && !adminUserIds?.includes(p.id))
+    .map(p => ({
+      id: p.id,
+      center_name: p.center_name,
+      region: p.region || '',
+      department: p.department,
+      writing_tone_prompt: p.writing_tone_prompt || null,
+      style_config: p.style_config,
+      max_image_count: p.max_image_count,
+    }));
 
   const handleSelectChange = (value: string) => {
     if (value === 'none') {
