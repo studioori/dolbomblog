@@ -157,59 +157,21 @@ const getHealthQASystemPrompt = (
 ): string => {
   const styleConfig = HEALTH_QA_STYLES[style] || HEALTH_QA_STYLES[DEFAULT_HEALTH_QA_STYLE];
   const lengthConfig = getContentLengthConfig(contentLength);
-  
-  const today = new Date().toLocaleDateString('ko-KR');
 
-  return `# Role Definition
-
-당신은 '${region}'에 위치한 '${centerName}'의 치과 원장님입니다.
-오늘은 ${today}입니다.
+  return `당신은 '${centerName}' 치과 원장입니다(지역: ${region}).
 
 ${DENTAL_REFINE_SYSTEM_PROMPT}
 
-# 🎯 TODAY'S WRITING STYLE: ${styleConfig.name}
-
-**스타일 설명:** ${styleConfig.description}
-
-**Instruction:** 
+[글쓰기 스타일]
+${styleConfig.name}: ${styleConfig.description}
 ${styleConfig.prompt}
 
-# 📏 글 길이 설정
+[길이 목표]
+${lengthConfig.description} (약 ${lengthConfig.targetChars}자)
 
-- 목표 길이: ${lengthConfig.description} (약 ${lengthConfig.targetChars}자)
-- 이 길이에 맞춰 내용을 조절하세요.
-
-# 지역 정보
-
-- 병원명: ${centerName}
-- 지역: ${region}
-
-# 해시태그 지침
-
-해시태그 생성 시 **지역명 + 치과 + 질환명** 조합을 포함하세요:
-- #${centerName.replace(/\s/g, '')} (필수)
-- #${region.replace(/\s/g, '')}치과 (지역+치과)
-- #${region.replace(/\s/g, '')}건강정보
-- 질환/증상 관련 해시태그
-- 검색 의도가 반영된 태그
-
-⚠️ 해시태그에서도 금칙어("완치", "최고", "전문병원" 등) 사용 금지
-
-# 결과 형식
-
-JSON 형식으로 반환하세요:
-{
-  "title": "블로그 제목 (25~35자, 금지어 절대 사용 금지, 의료법 준수)",
-  "content": "본문 내용 (Q&A 구조 적용, 의료법 준수)",
-  "hashtags": ["#${centerName.replace(/\s/g, '')}", "#${region.replace(/\s/g, '')}치과", "#해시태그3", ...최대 10개],
-  "key_points": ["핵심 포인트 1", "핵심 포인트 2", "핵심 포인트 3"]
-}
-
-⚠️ 최종 점검 사항:
-1. 의료법 금칙어("완치", "100%", "최고", "전문병원", "할인" 등)가 포함되어 있지 않은지 확인
-2. Q&A 구조가 적용되었는지 확인
-3. 제목이 25~35자 이내인지 확인
-4. 문단이 읽기 쉽게 나뉘었는지 확인`;
+[해시태그]
+- #${centerName.replace(/\s/g, '')} #${region.replace(/\s/g, '')}치과 #건강정보
+- 질환명과 검색의도를 반영한 태그 추가`;
 };
 
 // ============================================
@@ -342,10 +304,22 @@ const generateHealthQACore = async (
     throw lastError || new Error("모든 재시도가 실패했습니다.");
   }
 
-  // finishReason 확인
+  // finishReason과 usage 정보 확인
   const finishReason = data.candidates?.[0]?.finishReason;
+  const usageMetadata = (data as any).usageMetadata;
+
+  console.log(
+    `📊 API Response: finishReason=${finishReason}, ` +
+    `inputTokens=${usageMetadata?.promptTokenCount || 'N/A'}, ` +
+    `outputTokens=${usageMetadata?.candidatesTokenCount || 'N/A'}, ` +
+    `maxOutputTokens=${maxTokens}`
+  );
+
   if (finishReason === 'MAX_TOKENS') {
-    console.warn("⚠️ Generation stopped due to MAX_TOKENS limit. Content may be truncated.");
+    console.warn(
+      `⚠️ Generation stopped due to MAX_TOKENS limit. ` +
+      `(output tokens: ${usageMetadata?.candidatesTokenCount || '?'}/${maxTokens})`
+    );
   } else if (finishReason && finishReason !== 'STOP') {
     console.warn(`⚠️ Generation finished with reason: ${finishReason}`);
   }
@@ -358,7 +332,7 @@ const generateHealthQACore = async (
     throw new Error("AI 응답이 비어있습니다.");
   }
 
-  console.log("AI response received:", aiContent.substring(0, 500));
+  console.log(`✅ AI response received (${aiContent.length} chars):`, aiContent.substring(0, 300));
 
   // 기본 해시태그
   const defaultHashtags = [
