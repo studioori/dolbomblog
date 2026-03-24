@@ -285,10 +285,21 @@ export const getPostsByCategory = query({
  * @param category - 카테고리 (선택)
  * @param imagePaths - 이미지 경로 배열
  * @param status - 발행 상태 (기본값: draft)
+ * 
+ * [건강정보 Q&A 모드 필드 - 2025-03-24 추가]
+ * @param mode - 모드 구분 (daily: 병원일상, health_qa: 건강정보 Q&A)
+ * @param postType - 포스트 타입 (refine: 초안 다듬기, generate: 주제로 생성)
+ * @param topic - 건강 주제
+ * @param originalDraft - 원장 초안 원문
+ * @param department - 진료과
+ * @param keyPoints - 핵심 포인트 배열
+ * @param hashtags - 해시태그 배열
+ * 
  * @returns 생성된 포스트 ID
  */
 export const createPost = mutation({
   args: {
+    // 기존 필드
     userId: v.optional(v.string()),
     content: v.string(),
     title: v.optional(v.string()),
@@ -299,11 +310,26 @@ export const createPost = mutation({
       v.literal("published"),
       v.literal("archived")
     )),
+    // 건강정보 Q&A 모드 필드 (2025-03-24 추가)
+    mode: v.optional(v.union(
+      v.literal("daily"),
+      v.literal("health_qa")
+    )),
+    postType: v.optional(v.union(
+      v.literal("refine"),
+      v.literal("generate")
+    )),
+    topic: v.optional(v.string()),
+    originalDraft: v.optional(v.string()),
+    department: v.optional(v.string()),
+    keyPoints: v.optional(v.array(v.string())),
+    hashtags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
 
     const postId = await ctx.db.insert("generated_posts", {
+      // 기존 필드
       user_id: args.userId,
       content: args.content,
       title: args.title,
@@ -311,6 +337,14 @@ export const createPost = mutation({
       image_paths: args.imagePaths ?? [],
       status: args.status ?? "draft",
       created_at: now,
+      // 건강정보 Q&A 모드 필드 (새로 추가)
+      mode: args.mode,
+      post_type: args.postType,
+      topic: args.topic,
+      original_draft: args.originalDraft,
+      department: args.department,
+      key_points: args.keyPoints,
+      hashtags: args.hashtags,
     });
 
     return postId;

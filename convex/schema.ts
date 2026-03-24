@@ -134,6 +134,29 @@ export default defineSchema({
       v.literal("published"),
       v.literal("archived")
     )),
+    // ============================================
+    // 건강정보 Q&A 모드 필드 (2025-03-24 추가)
+    // ============================================
+    // 모드 구분 (daily: 병원일상, health_qa: 건강정보 Q&A)
+    mode: v.optional(v.union(
+      v.literal("daily"),
+      v.literal("health_qa")
+    )),
+    // 포스트 타입 (refine: 초안 다듬기, generate: 주제로 생성)
+    post_type: v.optional(v.union(
+      v.literal("refine"),
+      v.literal("generate")
+    )),
+    // 건강 주제 (건강정보 Q&A 모드용)
+    topic: v.optional(v.string()),
+    // 원장 초안 원문 (초안 다듬기용)
+    original_draft: v.optional(v.string()),
+    // 진료과 (기본: dentistry)
+    department: v.optional(v.string()),
+    // 핵심 포인트 배열 (건강정보 Q&A용)
+    key_points: v.optional(v.array(v.string())),
+    // 해시태그 배열
+    hashtags: v.optional(v.array(v.string())),
   })
     // 사용자별 포스트 조회
     .index("by_user_id", ["user_id"])
