@@ -239,7 +239,7 @@ const Index = () => {
         {/* ============================================ */}
         {/* 모드 선택 탭 (2025-03-24 추가) */}
         {/* ============================================ */}
-        {!generatedBlog && !generatedQA && (
+        {!generatedBlog && (
           <div className="animate-fade-in">
             <Tabs value={mode} onValueChange={(v) => setMode(v as 'daily' | 'health_qa')} className="w-full">
               <TabsList className="grid w-full grid-cols-2 bg-muted p-1 rounded-xl">

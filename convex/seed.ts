@@ -89,10 +89,15 @@ export const setAdminByEmail = mutation({
       });
     }
 
-    return { 
-      success: true, 
+    // 프로필 승인 처리 (is_active = true)
+    await ctx.db.patch(profile._id, {
+      is_active: true,
+    });
+
+    return {
+      success: true,
       message: `${args.email} 님에게 관리자 권한이 부여되었습니다!`,
-      userId: profile.id 
+      userId: profile.id
     };
   },
 });

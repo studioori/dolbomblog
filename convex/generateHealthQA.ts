@@ -78,11 +78,17 @@ const RETRY_DELAY_MS = 1000;
  * 마크다운 코드 블록 제거 (기존 generateBlog.ts와 동일)
  */
 const stripMarkdownCodeBlocks = (text: string): string => {
-  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (codeBlockMatch) {
-    return codeBlockMatch[1].trim();
+  // 마크다운 코드 블록 제거 (```json ... ``` 형식)
+  let cleaned = text.trim();
+
+  // 백틱으로 감싸인 JSON 추출 (가장 간단한 방식)
+  // ``` 또는 ```json 또는 ```JSON 모두 처리
+  const match = cleaned.match(/```(?:json|JSON)?\s*([\s\S]*?)\s*```/);
+  if (match && match[1]) {
+    return match[1].trim();
   }
-  return text.trim();
+
+  return cleaned;
 };
 
 /**

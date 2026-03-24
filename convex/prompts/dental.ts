@@ -93,12 +93,12 @@ export const CONTENT_LENGTH_CONFIG: Record<string, ContentLengthConfig> = {
   },
   medium: {
     description: "적당한 길이 (약 900자)",
-    maxTokens: 2500,
+    maxTokens: 3500,
     targetChars: 900
   },
   long: {
     description: "자세한 설명 (약 1200자)",
-    maxTokens: 3500,
+    maxTokens: 4500,
     targetChars: 1200
   }
 };
