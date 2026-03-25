@@ -63,7 +63,7 @@ interface GeminiResponse {
 // Constants
 // ============================================
 
-// Gemini API 설정 (기존 generateBlog.ts와 동일)
+// Gemini API 설정 - gemini-2.5-flash: 현재 권장 모델
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
 // 재시도 설정 (기존과 동일)
@@ -229,15 +229,14 @@ const generateHealthQACore = async (
   // Gemini API용 parts 구성
   const parts: Array<{ text?: string }> = [];
 
-  // 사용자 프롬프트 구성
-  let userPrompt = `다음은 치과 원장님이 작성하신 Q&A 초안입니다. 이 내용을 환자분들이 읽기 쉽고 친근한 블로그 글로 다듬어주세요.\n\n`;
-  
+  // 사용자 프롬프트 구성 (최소화)
+  let userPrompt = `원장 초안을 Q&A 블로그 글로 변환하세요.\n\n`;
+
   if (args.topic) {
-    userPrompt += `**주제:** ${args.topic}\n\n`;
+    userPrompt += `주제: ${args.topic}\n`;
   }
-  
-  userPrompt += `**원장님 초안:**\n${args.draft}\n\n`;
-  userPrompt += `위 초안을 바탕으로 환자분들에게 유용한 Q&A 형식의 블로그 글을 작성해주세요. JSON 형식으로 응답해주세요.`;
+
+  userPrompt += `초안:\n${args.draft}\n\nJSON으로 응답하세요.`;
 
   parts.push({ text: userPrompt });
 
@@ -254,7 +253,11 @@ const generateHealthQACore = async (
     ],
     generationConfig: {
       maxOutputTokens: maxTokens,
-      temperature: 0.7, // Q&A는 좀 더 일관된 톤 유지
+      temperature: 0.7,
+      // gemini-2.5-flash thinking 비활성화 (출력 토큰 절약)
+      thinkingConfig: {
+        thinkingBudget: 0
+      }
     }
   };
 
