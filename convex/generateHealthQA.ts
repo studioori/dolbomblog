@@ -253,11 +253,7 @@ const generateHealthQACore = async (
     ],
     generationConfig: {
       maxOutputTokens: maxTokens,
-      temperature: 0.7,
-      // gemini-2.5-flash thinking 비활성화 (출력 토큰 절약)
-      thinkingConfig: {
-        thinkingBudget: 0
-      }
+      temperature: 0.7
     }
   };
 
