@@ -9,7 +9,6 @@ import { v } from "convex/values";
  * - user_roles: 사용자 권한 관리
  * - activity_logs: 활동 로그
  * - generated_posts: 생성된 블로그 포스트
- * - coupons: 쿠폰 관리
  */
 
 export default defineSchema({
@@ -41,8 +40,6 @@ export default defineSchema({
     writing_tone_prompt: v.optional(v.string()),
     // 최대 이미지 개수
     max_image_count: v.number(),
-    // 구독 만료일 (Unix timestamp in ms)
-    subscription_expires_at: v.optional(v.number()),
     // 인사말
     intro_greeting: v.optional(v.string()),
     // 결어
@@ -96,7 +93,7 @@ export default defineSchema({
   activity_logs: defineTable({
     // 사용자 ID
     user_id: v.string(),
-    // 액션 타입 (예: "post_generated", "login", "coupon_redeemed")
+    // 액션 타입 (예: "post_generated", "login")
     action_type: v.string(),
     // 추가 메타데이터 (선택적)
     metadata: v.optional(v.any()),
@@ -167,33 +164,4 @@ export default defineSchema({
     // 사용자+생성일 조합
     .index("by_user_and_created", ["user_id", "created_at"]),
 
-  // ============================================
-  // 쿠폰 테이블
-  // ============================================
-  coupons: defineTable({
-    // 쿠폰 코드 (고유)
-    code: v.string(),
-    // 유효 기간 (개월)
-    duration_months: v.number(),
-    // 사용 여부
-    is_used: v.boolean(),
-    // 사용자 ID (사용한 사람)
-    used_by: v.optional(v.string()),
-    // 사용일 (Unix timestamp in ms)
-    used_at: v.optional(v.number()),
-    // 생성자 ID
-    created_by: v.optional(v.string()),
-    // 생성일 (Unix timestamp in ms)
-    created_at: v.number(),
-    // 쿠폰 설명 (선택적)
-    description: v.optional(v.string()),
-  })
-    // 쿠폰 코드로 빠른 조회 (고유)
-    .index("by_code", ["code"])
-    // 사용 여부별 조회
-    .index("by_is_used", ["is_used"])
-    // 사용자별 사용 쿠폰 조회
-    .index("by_used_by", ["used_by"])
-    // 생성자별 조회
-    .index("by_created_by", ["created_by"]),
 });

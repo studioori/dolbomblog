@@ -9,7 +9,6 @@
  */
 
 import type * as admin from "../admin.js";
-import type * as coupons from "../coupons.js";
 import type * as crons from "../crons.js";
 import type * as generateBlog from "../generateBlog.js";
 import type * as generateHealthQA from "../generateHealthQA.js";
@@ -28,7 +27,6 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
-  coupons: typeof coupons;
   crons: typeof crons;
   generateBlog: typeof generateBlog;
   generateHealthQA: typeof generateHealthQA;

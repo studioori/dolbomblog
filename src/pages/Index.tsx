@@ -5,7 +5,6 @@ import PhotoUploader, { type PhotoItem } from '@/components/PhotoUploader';
 import PhotoBlogResult from '@/components/PhotoBlogResult';
 import RecentPostsList from '@/components/RecentPostsList';
 import AdminSimulationBar, { type SimulationProfile } from '@/components/AdminSimulationBar';
-import CouponRedeem from '@/components/CouponRedeem';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -398,11 +397,6 @@ const Index = () => {
               onReset={handleReset}
             />
           </div>
-        )}
-
-        {/* 이용권 등록 섹션 - 데모 모드에서는 숨김 */}
-        {!generatedBlog && !generatedQA && user && !isAdmin && !isDemo && (
-          <CouponRedeem />
         )}
 
         {/* 최근 생성된 글 목록 - 데모 모드에서는 숨김, 일반 사용자는 본인 글만, 관리자는 모든 글 표시 */}

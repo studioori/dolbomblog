@@ -83,7 +83,7 @@ export const getUserRole = query({
 
 /**
  * 8. 생성 가능 여부 확인
- * 구독 만료일, 활성 상태, 월간 사용량 제한 확인
+ * 활성 상태, 월간 사용량 제한 확인
  * @param userId - 사용자 ID
  * @returns 생성 가능 여부와 관련 정보
  */
@@ -120,22 +120,6 @@ export const canGenerate = query({
       };
     }
 
-    // 구독 만료일 확인
-    if (profile.subscription_expires_at) {
-      const now = Date.now();
-      if (now > profile.subscription_expires_at) {
-        return {
-          canGenerate: false,
-          reason: "subscription_expired",
-          message: "구독이 만료되었습니다.",
-          currentUsage: profile.current_usage,
-          monthlyLimit: profile.monthly_limit,
-          remainingCount: 0,
-          subscriptionExpiresAt: profile.subscription_expires_at,
-        };
-      }
-    }
-
     // 월간 사용량 확인
     const remainingCount = profile.monthly_limit - profile.current_usage;
 
@@ -157,7 +141,6 @@ export const canGenerate = query({
       currentUsage: profile.current_usage,
       monthlyLimit: profile.monthly_limit,
       remainingCount,
-      subscriptionExpiresAt: profile.subscription_expires_at,
     };
   },
 });
@@ -248,7 +231,6 @@ export const updateProfile = mutation({
       style_config: v.optional(v.any()),
       writing_tone_prompt: v.optional(v.string()),
       max_image_count: v.optional(v.number()),
-      subscription_expires_at: v.optional(v.number()),
       intro_greeting: v.optional(v.string()),
       outro_signature: v.optional(v.string()),
       sentence_length: v.optional(v.string()),
@@ -445,15 +427,12 @@ export const getCurrentUser = query({
       .first();
 
     const remainingCount = profile.monthly_limit - profile.current_usage;
-    const isSubscriptionValid =
-      !profile.subscription_expires_at || profile.subscription_expires_at > Date.now();
 
     return {
       profile,
       role: userRole?.role || "user",
-      canGenerate: profile.is_active && isSubscriptionValid && remainingCount > 0,
+      canGenerate: profile.is_active && remainingCount > 0,
       remainingCount,
-      isSubscriptionValid,
     };
   },
 });

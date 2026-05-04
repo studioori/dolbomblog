@@ -28,7 +28,6 @@ interface Profile {
   created_at: number;
   writing_tone_prompt: string | null;
   max_image_count: number;
-  subscription_expires_at: number | null;
   // New style settings
   writing_style?: string;
   content_length?: string;
@@ -170,7 +169,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     created_at: profileData.created_at,
     writing_tone_prompt: profileData.writing_tone_prompt ?? null,
     max_image_count: profileData.max_image_count,
-    subscription_expires_at: profileData.subscription_expires_at ?? null,
     // New style settings
     writing_style: profileData.writing_style,
     content_length: profileData.content_length,
