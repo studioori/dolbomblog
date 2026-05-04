@@ -35,54 +35,6 @@ export type Database = {
         }
         Relationships: []
       }
-      coupons: {
-        Row: {
-          code: string
-          created_at: string
-          created_by: string | null
-          duration_months: number
-          id: string
-          is_used: boolean
-          used_at: string | null
-          used_by: string | null
-        }
-        Insert: {
-          code: string
-          created_at?: string
-          created_by?: string | null
-          duration_months: number
-          id?: string
-          is_used?: boolean
-          used_at?: string | null
-          used_by?: string | null
-        }
-        Update: {
-          code?: string
-          created_at?: string
-          created_by?: string | null
-          duration_months?: number
-          id?: string
-          is_used?: boolean
-          used_at?: string | null
-          used_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "coupons_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "coupons_used_by_fkey"
-            columns: ["used_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       generated_posts: {
         Row: {
           content: string

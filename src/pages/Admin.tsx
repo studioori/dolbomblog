@@ -23,7 +23,6 @@ import StatsWidgets from '@/components/admin/StatsWidgets';
 import GlobalActivityFeed from '@/components/admin/GlobalActivityFeed';
 import StyleConfigModal, { type StyleConfig } from '@/components/admin/StyleConfigModal';
 import UsageHistoryModal from '@/components/admin/UsageHistoryModal';
-import CouponGenerator from '@/components/admin/CouponGenerator';
 
 interface Profile {
   id: string;
@@ -608,12 +607,7 @@ const Admin = () => {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger 
-              value="coupons" 
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-soft transition-all duration-300"
-            >
-              🎟️ 쿠폰 관리
-            </TabsTrigger>
+
           </TabsList>
 
           {/* Overview Tab - Activity Feed */}
@@ -880,10 +874,6 @@ const Admin = () => {
             </Card>
           </TabsContent>
 
-          {/* Coupons Tab */}
-          <TabsContent value="coupons" className="space-y-6 animate-fade-in">
-            <CouponGenerator />
-          </TabsContent>
         </Tabs>
       </main>
 

@@ -5,7 +5,6 @@ import PhotoUploader, { type PhotoItem } from '@/components/PhotoUploader';
 import PhotoBlogResult from '@/components/PhotoBlogResult';
 import RecentPostsList from '@/components/RecentPostsList';
 import AdminSimulationBar, { type SimulationProfile } from '@/components/AdminSimulationBar';
-import CouponRedeem from '@/components/CouponRedeem';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { usePhotoBlog } from '@/hooks/usePhotoBlog';
@@ -217,11 +216,6 @@ const Index = () => {
               onReset={handleReset}
             />
           </div>
-        )}
-
-        {/* 이용권 등록 섹션 */}
-        {!generatedBlog && user && !isAdmin && (
-          <CouponRedeem />
         )}
 
         {/* 최근 생성된 글 목록 */}
