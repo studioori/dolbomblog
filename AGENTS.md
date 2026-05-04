@@ -1,143 +1,71 @@
 # AGENTS.md
 
-This file provides guidance to WARP (warp.dev) when working with code in this repository.
+이 파일은 OpenCode AI 에이전트가 프로젝트를 이해하는 데 필요한 정보를 제공합니다.
 
 ## Project Overview
 
-**Mediblog** (🏥) is an AI-powered blog generator for Korean dental clinics and hospitals. Users upload activity photos and the AI generates professional yet warm blog posts suitable for patients and their families.
+<!-- 프로젝트 설명을 여기에 작성하세요 -->
 
-## Tech Stack
+## Current Progress
 
-- **Frontend**: React 18 + TypeScript + Vite
-- **Backend**: Convex (serverless backend with real-time subscriptions)
-- **Authentication**: Clerk
-- **AI**: Google Gemini API
-- **UI**: shadcn/ui components + Tailwind CSS + Radix UI primitives
-- **State Management**: TanStack Query (client), Convex React hooks (backend)
-- **Routing**: react-router-dom
+### Completed
+- ✅ 프로젝트 초기화
 
-## Common Commands
+### In Progress
+- 🔄 개발 중
 
-```bash
-# Install dependencies
-npm install
+### Pending
+- ⏳ 대기 중
 
-# Start development server (port 8080)
-npm run dev
+## Build Commands
 
-# Build for production
-npm run build
+### Core Commands
+- `npm install` - 의존성 설치
+- `npm run dev` - 개발 서버 실행
+- `npm run build` - 프로덕션 빌드
 
-# Build for development
-npm run build:dev
+## Code Style Guidelines
 
-# Lint
-npm run lint
+### TypeScript
+- Target: ES2022
+- Strict mode enabled
+- Functional components with React.FC
 
-# Preview production build
-npm run preview
+### Naming Conventions
+- **Components**: PascalCase
+- **Functions/Variables**: camelCase
+- **Constants**: UPPER_SNAKE_CASE
+- **Types/Interfaces**: PascalCase
 
-# Start Convex development server (required for backend)
-npx convex dev
-```
+### Styling (Tailwind CSS)
+- Use utility classes
+- Spacing: `p-3`, `m-2`, `gap-4`
+- Colors: `text-gray-800`, `bg-emerald-500`
 
-**Note**: Both `npm run dev` and `npx convex dev` must run simultaneously for full development experience.
+## Multi-Agent System (Oh My OpenCode)
 
-## Environment Variables
+### Agent Roles
 
-Required in `.env`:
-- `VITE_CONVEX_URL` - Convex deployment URL
-- `VITE_CLERK_PUBLISHABLE_KEY` - Clerk authentication key
-- `GOOGLE_API_KEY` - Google Gemini API key (set in Convex dashboard)
+| 에이전트 | 역할 | 전문분야 |
+|---------|------|---------|
+| **Sisyphus** | 팀 리더 | 설계, 조율, 의사결정 |
+| **Oracle** | 코드 아키텍트 | 코드작성, 리팩토링, 최적화 |
+| **Frontend-Engineer** | 프론트엔드 전문가 | React, TypeScript, UI/UX |
+| **Librarian** | 문서 검색 | 문서검색, 정보요약 |
+| **Explore** | 코드 네비게이터 | 파일탐색, 코드분석 |
+| **Multimodal-Looker** | 비전 분석 | 이미지분석, 디자인변환 |
 
-See `.env.example.convex` for Convex configuration template.
+### Workflow Patterns
 
-## Architecture
+1. **코드 생성**: Sisyphus → Oracle
+2. **프론트엔드**: Sisyphus → Frontend-Engineer
+3. **문서 작업**: Sisyphus → Librarian
+4. **코드 탐색**: Sisyphus → Explore
+5. **디자인 변환**: Sisyphus → Multimodal-Looker
 
-### Directory Structure
+## Auto-Applied Skills
 
-```
-src/
-├── components/       # React components
-│   ├── admin/       # Admin panel components
-│   └── ui/          # shadcn/ui primitives (auto-generated)
-├── contexts/        # React contexts (AuthContext)
-├── hooks/           # Custom hooks (usePhotoBlog, use-toast, etc.)
-├── lib/             # Utility functions and Convex client setup
-├── pages/           # Route pages (Index, Auth, Admin)
-└── types/           # TypeScript type definitions
-
-convex/
-├── schema.ts        # Database schema definitions
-├── users.ts         # User/profile management functions
-├── posts.ts         # Blog post CRUD operations
-├── generateBlog.ts  # AI blog generation action (Google Gemini)
-├── admin.ts         # Admin-only queries and mutations
-├── coupons.ts       # Coupon management
-└── crons.ts         # Scheduled tasks
-```
-
-### Key Patterns
-
-**Convex Functions**
-- Queries: Real-time subscribed data fetching (`useQuery`)
-- Mutations: Data modifications (`useMutation`)
-- Actions: External API calls (AI generation uses this)
-- Internal functions: Server-side only operations
-
-**Authentication Flow**
-- Clerk handles auth UI and session
-- `AuthContext` (`src/contexts/AuthContext.tsx`) wraps Clerk + Convex user data
-- User profiles stored in Convex `profiles` table
-- Role-based access via `user_roles` table (admin/user)
-
-**Blog Generation Flow**
-1. User uploads photos → compressed client-side
-2. Photos uploaded to Convex file storage
-3. `generateBlog` action called with image URLs + user preferences
-4. Google Gemini AI generates content
-5. Result saved to `generated_posts` table
-
-### Database Tables (Convex Schema)
-
-- `profiles` - User profiles with plan tiers and usage limits
-- `user_roles` - Role assignments (admin/user)
-- `activity_logs` - User activity tracking
-- `generated_posts` - Generated blog content
-- `coupons` - Subscription coupon management
-
-## Path Aliases
-
-The project uses `@/` as an alias for `src/`:
-```typescript
-import { Button } from "@/components/ui/button";
-```
-
-## UI Components
-
-Components in `src/components/ui/` are generated via shadcn/ui CLI. To add new components:
-```bash
-npx shadcn@latest add [component-name]
-```
-
-## Korean Language Context
-
-The application targets Korean dental clinics and hospitals. Content and UI are in Korean. Key terminology:
-- 병원명 - Hospital/clinic name (replaced 센터명)
-- 지역 - Region
-- 치과 - Dental clinic
-- 의원 - Medical clinic
-
-## Branding
-
-- **Brand Name**: Mediblog
-- **Emoji**: 🏥 (hospital)
-- **Example Hospital**: 서울치과의원
-- **Tagline**: 환자들에게 다가가는 병원 소통 플랫폼
-
-## Migration Notes
-
-This project was migrated from:
-- **Supabase → Convex** (backend)
-- **Lovable AI → Google Gemini API** (AI generation)
-- **Senior care center → Dental/hospital focus** (rebranding)
+이 프로젝트에서 자동으로 적용되는 스킬:
+- `vercel-react-best-practices` - React 성능 최적화
+- `web-design-guidelines` - 웹 디자인 가이드라인
+- `frontend-design` - 프론트엔드 디자인 패턴

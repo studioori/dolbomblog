@@ -1,179 +1,134 @@
-/* ========================================
-   Mediblog - Premium Frontend Styles
-   🏥 치과·병원 블로그 생성기
-   ======================================== */
-
-/* Font Imports */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ========================================
-   CSS Variables - Forest & Gold Theme
-   ======================================== */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
+
 @layer base {
   :root {
-    /* Base Colors - Using only 041F1E & F7DBA7 palette */
-    --background: 178 20% 98%; /* Lighter version of 041F1E */
-    --foreground: 38 40% 12%; /* Darker version of F7DBA7 */
+    /* Elegant Forest & Gold Theme */
+    --background: 60 20% 98%;
+    --foreground: 160 25% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 38 40% 12%;
+    --card-foreground: 160 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 38 40% 12%;
+    --popover-foreground: 160 25% 12%;
 
-    /* Primary - 041F1E (Dark Green) */
-    --primary: 178 77% 7%;
-    --primary-foreground: 38 85% 96%;
+    /* Deep Forest Green - Primary */
+    --primary: 158 45% 28%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Secondary - F7DBA7 (Warm Gold) */
-    --secondary: 38 83% 81%;
-    --secondary-foreground: 178 77% 7%;
+    /* Warm Gold - Secondary */
+    --secondary: 40 70% 50%;
+    --secondary-foreground: 160 25% 12%;
 
-    --muted: 178 15% 96%;
-    --muted-foreground: 38 20% 45%;
+    --muted: 60 10% 93%;
+    --muted-foreground: 160 15% 45%;
 
-    /* Accent - Mixed light color */
-    --accent: 38 60% 95%;
-    --accent-foreground: 178 77% 7%;
+    /* Accent - Soft Cream */
+    --accent: 45 45% 95%;
+    --accent-foreground: 160 25% 12%;
 
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 178 15% 88%;
-    --input: 178 10% 92%;
-    --ring: 178 77% 7%;
+    --border: 60 15% 88%;
+    --input: 60 10% 92%;
+    --ring: 158 45% 28%;
 
     --radius: 1rem;
 
-    /* Custom colors - Only using 041F1E & F7DBA7 */
-    --forest: 178 77% 7%; /* 041F1E */
-    --forest-light: 178 60% 85%;
-    --forest-dark: 178 85% 5%;
-    --gold: 38 83% 81%; /* F7DBA7 */
-    --gold-light: 38 70% 94%;
-    --gold-dark: 38 90% 65%;
-    --ivory: 38 45% 97%;
-    --charcoal: 178 77% 7%;
-    --stone: 178 10% 55%;
+    /* Custom colors - Forest & Gold palette */
+    --forest: 158 45% 28%;
+    --forest-light: 158 30% 95%;
+    --forest-dark: 158 50% 18%;
+    --gold: 40 70% 50%;
+    --gold-light: 40 60% 94%;
+    --gold-dark: 40 75% 40%;
+    --ivory: 45 45% 97%;
+    --charcoal: 160 25% 12%;
+    --stone: 60 10% 55%;
 
-    /* Premium Shadows - Using only two colors */
-    --shadow-soft: 0 2px 15px -3px hsl(178 70% 20% / 0.08);
-    --shadow-card: 0 4px 25px -5px hsl(178 70% 20% / 0.1);
-    --shadow-hover: 0 10px 40px -8px hsl(178 70% 20% / 0.15);
-    --shadow-elevated: 0 20px 50px -12px hsl(178 70% 20% / 0.2);
-    --shadow-glow: 0 0 30px hsl(38 83% 81% / 0.25);
-    --shadow-glow-forest: 0 0 40px hsl(178 77% 7% / 0.3);
+    /* Elegant Shadows */
+    --shadow-soft: 0 2px 15px -3px hsl(158 40% 20% / 0.08);
+    --shadow-card: 0 4px 25px -5px hsl(158 40% 20% / 0.1);
+    --shadow-hover: 0 10px 40px -8px hsl(158 40% 20% / 0.15);
+    --shadow-elevated: 0 20px 50px -12px hsl(158 40% 20% / 0.2);
+    --shadow-glow: 0 0 30px hsl(40 70% 50% / 0.2);
 
-    /* Premium Gradients - Only using two colors */
-    --gradient-forest: linear-gradient(135deg, hsl(178 77% 7%) 0%, hsl(178 65% 15%) 100%);
-    --gradient-gold: linear-gradient(135deg, hsl(38 83% 81%) 0%, hsl(35 85% 65%) 100%);
-    --gradient-soft: linear-gradient(180deg, hsl(178 20% 98%) 0%, hsl(38 40% 96%) 100%);
+    /* Premium Gradients */
+    --gradient-forest: linear-gradient(135deg, hsl(158 45% 28%) 0%, hsl(168 40% 35%) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(40 70% 50%) 0%, hsl(35 75% 55%) 100%);
+    --gradient-soft: linear-gradient(180deg, hsl(60 20% 98%) 0%, hsl(45 30% 96%) 100%);
     --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.95) 0%, hsl(0 0% 100% / 0.85) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(38 45% 97%) 0%, hsl(178 20% 98%) 50%, hsl(178 15% 96%) 100%);
-    --gradient-shimmer: linear-gradient(90deg, transparent 0%, hsl(38 83% 81% / 0.4) 50%, transparent 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(45 45% 97%) 0%, hsl(60 20% 98%) 50%, hsl(158 20% 96%) 100%);
 
-    /* Sidebar */
     --sidebar-background: 0 0% 99%;
-    --sidebar-foreground: 38 40% 20%;
-    --sidebar-primary: 178 77% 7%;
-    --sidebar-primary-foreground: 38 85% 96%;
-    --sidebar-accent: 38 45% 95%;
-    --sidebar-accent-foreground: 178 77% 7%;
-    --sidebar-border: 178 15% 90%;
-    --sidebar-ring: 178 77% 7%;
+    --sidebar-foreground: 160 25% 20%;
+    --sidebar-primary: 158 45% 28%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 45 45% 95%;
+    --sidebar-accent-foreground: 160 25% 12%;
+    --sidebar-border: 60 15% 90%;
+    --sidebar-ring: 158 45% 28%;
   }
 
   .dark {
-    /* Dark Mode - Same colors, adjusted brightness */
-    --background: 178 20% 6%;
-    --foreground: 38 30% 92%;
+    --background: 160 20% 6%;
+    --foreground: 45 30% 92%;
 
-    --card: 178 18% 10%;
-    --card-foreground: 38 30% 92%;
+    --card: 160 18% 10%;
+    --card-foreground: 45 30% 92%;
 
-    --popover: 178 18% 10%;
-    --popover-foreground: 38 30% 92%;
+    --popover: 160 18% 10%;
+    --popover-foreground: 45 30% 92%;
 
-    --primary: 178 60% 25%;
-    --primary-foreground: 178 20% 6%;
+    --primary: 158 40% 40%;
+    --primary-foreground: 160 20% 6%;
 
-    --secondary: 38 65% 55%;
-    --secondary-foreground: 178 20% 6%;
+    --secondary: 40 65% 55%;
+    --secondary-foreground: 160 20% 6%;
 
-    --muted: 178 15% 15%;
-    --muted-foreground: 38 15% 55%;
+    --muted: 160 15% 15%;
+    --muted-foreground: 60 15% 55%;
 
-    --accent: 178 18% 14%;
-    --accent-foreground: 38 30% 92%;
+    --accent: 160 18% 14%;
+    --accent-foreground: 45 30% 92%;
 
     --destructive: 0 60% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 178 15% 18%;
-    --input: 178 15% 18%;
-    --ring: 178 60% 25%;
+    --border: 160 15% 18%;
+    --input: 160 15% 18%;
+    --ring: 158 40% 40%;
 
-    --sidebar-background: 178 18% 8%;
-    --sidebar-foreground: 38 30% 90%;
-    --sidebar-primary: 178 60% 25%;
+    --sidebar-background: 160 18% 8%;
+    --sidebar-foreground: 45 30% 90%;
+    --sidebar-primary: 158 40% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 178 15% 14%;
-    --sidebar-accent-foreground: 38 30% 90%;
-    --sidebar-border: 178 15% 16%;
-    --sidebar-ring: 178 60% 25%;
+    --sidebar-accent: 160 15% 14%;
+    --sidebar-accent-foreground: 45 30% 90%;
+    --sidebar-border: 160 15% 16%;
+    --sidebar-ring: 158 40% 40%;
   }
 }
 
-/* ========================================
-   Base Styles
-   ======================================== */
 @layer base {
   * {
     @apply border-border;
-  }
-
-  html {
-    scroll-behavior: smooth;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
     letter-spacing: -0.01em;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  /* Heading Typography */
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', 'Pretendard', sans-serif;
-    letter-spacing: -0.02em;
-    font-weight: 700;
-  }
-
-  /* Selection */
-  ::selection {
-    background: hsl(178 77% 7% / 0.2);
-    color: hsl(38 40% 12%);
-  }
-
-  .dark ::selection {
-    background: hsl(178 60% 25% / 0.3);
-    color: hsl(38 30% 92%);
   }
 }
 
-/* ========================================
-   Utility Classes
-   ======================================== */
 @layer utilities {
-  /* Text Gradients */
   .text-gradient-forest {
     background: var(--gradient-forest);
     -webkit-background-clip: text;
@@ -188,7 +143,6 @@
     background-clip: text;
   }
 
-  /* Background Gradients */
   .bg-gradient-forest {
     background: var(--gradient-forest);
   }
@@ -206,13 +160,8 @@
     backdrop-filter: blur(16px);
   }
 
-  /* Shadows */
   .shadow-glow {
     box-shadow: var(--shadow-glow);
-  }
-
-  .shadow-glow-forest {
-    box-shadow: var(--shadow-glow-forest);
   }
 
   .shadow-soft {
@@ -231,98 +180,30 @@
     box-shadow: var(--shadow-elevated);
   }
 
-  /* Glass Morphism */
-  .glass {
-    background: hsl(0 0% 100% / 0.8);
-    backdrop-filter: blur(12px);
-    border: 1px solid hsl(var(--border) / 0.5);
-  }
-
-  .dark .glass {
-    background: hsl(178 18% 10% / 0.8);
-  }
-
-  /* Focus Ring */
-  .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
-  }
-
-  /* Noise Texture Overlay */
-  .noise-overlay {
-    position: relative;
-  }
-
-  .noise-overlay::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-    opacity: 0.03;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  /* Gradient Border */
-  .gradient-border {
-    position: relative;
-    background: hsl(var(--card));
-    border-radius: var(--radius);
-  }
-
-  .gradient-border::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: var(--gradient-forest);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-  }
-
-  /* Smooth Focus Ring */
-  .smooth-focus {
-    @apply focus-visible:outline-none;
-    transition: box-shadow 0.2s ease;
-  }
-
-  .smooth-focus:focus-visible {
-    box-shadow: 0 0 0 3px hsl(178 77% 7% / 0.2);
-  }
-
-  /* ========================================
-     Animations
-     ======================================== */
-
-  /* Float Animation */
   .animate-float {
     animation: float 4s ease-in-out infinite;
   }
 
   @keyframes float {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
+    50% { transform: translateY(-6px); }
   }
 
-  /* Soft Pulse */
   .animate-pulse-soft {
     animation: pulse-soft 3s ease-in-out infinite;
   }
 
   @keyframes pulse-soft {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
+    50% { opacity: 0.8; }
   }
 
-  /* Shimmer Effect */
   .animate-shimmer {
     animation: shimmer 2s linear infinite;
     background: linear-gradient(
       90deg,
       hsl(var(--muted)) 0%,
-      hsl(var(--gold)) 50%, /* F7DBA7 */
+      hsl(var(--accent)) 50%,
       hsl(var(--muted)) 100%
     );
     background-size: 200% 100%;
@@ -333,646 +214,15 @@
     100% { background-position: -200% 0; }
   }
 
-  /* Glow Pulse */
-  .animate-glow-pulse {
-    animation: glow-pulse 2s ease-in-out infinite;
+  /* Glass morphism utility */
+  .glass {
+    background: hsl(0 0% 100% / 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border) / 0.5);
   }
 
-  @keyframes glow-pulse {
-    0%, 100% {
-      box-shadow: 0 0 20px hsl(38 83% 81% / 0.2); /* F7DBA7 */
-    }
-    50% {
-      box-shadow: 0 0 40px hsl(38 83% 81% / 0.4); /* F7DBA7 */
-    }
+  /* Smooth focus ring */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
-
-  /* Stagger Animation */
-  .stagger-1 { animation-delay: 0.1s; }
-  .stagger-2 { animation-delay: 0.2s; }
-  .stagger-3 { animation-delay: 0.3s; }
-  .stagger-4 { animation-delay: 0.4s; }
-  .stagger-5 { animation-delay: 0.5s; }
-
-  /* Scale on Hover */
-  .hover-lift {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-  }
-
-  .hover-lift:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-hover);
-  }
-
-  /* Button Shimmer on Hover */
-  .btn-shimmer {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .btn-shimmer::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--gradient-shimmer);
-    transform: translateX(-100%);
-    transition: transform 0.6s ease;
-  }
-
-  .btn-shimmer:hover::after {
-    transform: translateX(100%);
-  }
-
-  /* Typing Cursor */
-  .typing-cursor::after {
-    content: '|';
-    animation: blink 1s step-end infinite;
-  }
-
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-  }
-
-  /* Skeleton Loading */
-  .skeleton {
-    background: linear-gradient(
-      90deg,
-      hsl(var(--muted)) 0%,
-      hsl(var(--muted) / 0.5) 50%,
-      hsl(var(--muted)) 100%
-    );
-    background-size: 200% 100%;
-    animation: skeleton-loading 1.5s ease-in-out infinite;
-  }
-
-  @keyframes skeleton-loading {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-  }
-
-  /* Subtle Scale Animation */
-  .animate-subtle-scale {
-    animation: subtle-scale 0.3s ease-out;
-  }
-
-  @keyframes subtle-scale {
-    0% { transform: scale(0.95); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
-  }
-
-  /* Slide In from Bottom */
-  .animate-slide-up {
-    animation: slide-up 0.5s ease-out;
-  }
-
-  @keyframes slide-up {
-    0% { transform: translateY(20px); opacity: 0; }
-    100% { transform: translateY(0); opacity: 1; }
-  }
-
-  /* Rotate on Hover */
-  .hover-rotate {
-    transition: transform 0.3s ease;
-  }
-
-  .hover-rotate:hover {
-    transform: rotate(5deg) scale(1.05);
-  }
-}
-
-/* Clerk Auth Component Styles */
-
-/* Clerk 카드 기본 스타일 제거 */
-.cl-card,
-.cl-component,
-.cl-rootBox {
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-
-/* 헤더, 푸터 숨기기 */
-.cl-header,
-.cl-footer,
-.cl-headerTitle,
-.cl-headerSubtitle {
-  display: none !important;
-}
-
-/* 소셜 로그인 숨기기 */
-.cl-socialButtonsBlock,
-.cl-socialButtonsBlockButton,
-.cl-socialButtonsDivider {
-  display: none !important;
-}
-
-/* 폼 레이아웃 */
-.cl-main,
-.cl-form {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 24px !important;
-  width: 100% !important;
-}
-
-/* 폼 필드 */
-.cl-formField {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-  width: 100% !important;
-  margin-bottom: 0 !important;
-}
-
-/* 라벨 */
-.cl-formFieldLabel,
-.cl-form label,
-.cl-main label {
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  color: #041F1E !important;
-  margin-bottom: 6px !important;
-  display: block !important;
-}
-
-/* 입력 필드 래퍼 */
-.cl-formFieldInputWrapper {
-  width: 100% !important;
-  position: relative !important;
-  display: block !important;
-}
-
-/* 입력 필드 - 강제 스타일 (041F1E & F7DBA7 only) */
-.cl-formFieldInput,
-.cl-identityPreview,
-input[type="email"].cl-formFieldInput,
-input[type="password"].cl-formFieldInput,
-input[type="text"].cl-formFieldInput,
-input.cl-formFieldInput,
-.cl-form input[type="email"],
-.cl-form input[type="password"],
-.cl-form input[type="text"],
-.cl-main input {
-  width: 100% !important;
-  height: 52px !important;
-  padding: 0 16px !important;
-  border-radius: 12px !important;
-  border: 2px solid #178A7A !important; /* Lighter 041F1E */
-  background-color: #FFFFFF !important;
-  font-size: 16px !important;
-  font-family: 'Pretendard', 'Noto Sans KR', sans-serif !important;
-  color: #041F1E !important;
-  transition: all 0.2s ease !important;
-  box-shadow: 0 2px 8px rgba(4, 31, 30, 0.04) !important; /* 041F1E shadow */
-  outline: none !important;
-  -webkit-appearance: none !important;
-  appearance: none !important;
-}
-
-/* 입력 필드 플레이스홀더 */
-.cl-formFieldInput::placeholder,
-.cl-form input::placeholder,
-.cl-main input::placeholder {
-  color: #8A9A96 !important;
-  font-weight: 400 !important;
-  opacity: 1 !important;
-}
-
-/* 입력 필드 포커스 */
-.cl-formFieldInput:focus,
-.cl-formFieldInput:focus-within,
-.cl-form input:focus,
-.cl-main input:focus {
-  background-color: #FFFFFF !important;
-  border-color: #041F1E !important;
-  box-shadow: 0 0 0 4px rgba(4, 31, 30, 0.15) !important;
-  outline: none !important;
-}
-
-/* 비밀번호 표시 버튼 */
-.cl-formFieldInputShowPasswordButton {
-  color: #8A9A96 !important;
-  right: 12px !important;
-}
-
-.cl-formFieldInputShowPasswordButton:hover {
-  color: #041F1E !important;
-}
-
-.cl-formFieldInputShowPasswordIcon {
-  width: 18px !important;
-  height: 18px !important;
-}
-
-/* 에러 메시지 */
-.cl-formFieldErrorText,
-.cl-formFieldErrors {
-  font-size: 13px !important;
-  color: #041F1E !important;
-  margin-top: 4px !important;
-}
-
-/* 알림/에러 박스 */
-.cl-alert {
-  display: none !important;
-}
-
-/* 로그인 버튼 (F7DBA7 based) */
-.cl-formButtonPrimary,
-button[type="submit"].cl-formButtonPrimary,
-.cl-form button[type="submit"],
-.cl-main button[type="submit"] {
-  width: 100% !important;
-  height: 52px !important;
-  padding: 0 !important;
-  border-radius: 12px !important;
-  background: linear-gradient(135deg, #041F1E 0%, #178A7A 100%) !important; /* 041F1E gradient */
-  color: #F7DBA7 !important; /* F7DBA7 text */
-  font-size: 16px !important;
-  font-weight: 600 !important;
-  font-family: 'Pretendard', 'Noto Sans KR', sans-serif !important;
-  border: none !important;
-  box-shadow: 0 4px 12px rgba(247, 219, 167, 0.35) !important; /* F7DBA7 shadow */
-  transition: all 0.2s ease !important;
-  cursor: pointer !important;
-}
-
-.cl-formButtonPrimary:hover,
-button[type="submit"].cl-formButtonPrimary:hover,
-.cl-form button[type="submit"]:hover,
-.cl-main button[type="submit"]:hover {
-  background: linear-gradient(135deg, #178A7A 0%, #2BA89A 100%) !important;
-  box-shadow: 0 6px 20px rgba(247, 219, 167, 0.45) !important;
-  transform: translateY(-2px) !important;
-}
-
-.cl-formButtonPrimary:active,
-button[type="submit"].cl-formButtonPrimary:active {
-  transform: scale(0.98) !important;
-}
-
-/* 로딩 상태 버튼 */
-.cl-formButtonPrimaryLoading {
-  opacity: 0.8 !important;
-  cursor: wait !important;
-}
-
-/* 로딩 스피너 */
-.cl-spinner {
-  border-color: rgba(247, 219, 167, 0.3) !important;
-  border-top-color: #F7DBA7 !important;
-}
-
-/* 비밀번호 찾기 링크 */
-.cl-footerAction {
-  display: flex !important;
-  justify-content: flex-end !important;
-  margin-top: 4px !important;
-}
-
-.cl-footerActionLink {
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  color: #041F1E !important;
-  text-decoration: none !important;
-}
-
-.cl-footerActionLink:hover {
-  color: #178A7A !important;
-}
-
-/* 회원가입 폼 - 약관 동의 */
-.cl-formHeader,
-.cl-formHeaderTitle,
-.cl-formHeaderSubtitle {
-  display: none !important;
-}
-
-/* 이메일/비밀번호 입력 아이콘 */
-.cl-internal-icon {
-  color: #8A9A96 !important;
-}
-
-/* 전화번호 입력 필드 */
-.cl-phoneInput {
-  height: 48px !important;
-  border-radius: 12px !important;
-  border: 1px solid #178A7A !important; /* Lighter 041F1E */
-  background-color: #F5F4EF !important;
-}
-
-/* 드롭다운 */
-.cl-dropdown {
-  border-radius: 12px !important;
-  border: 1px solid #178A7A !important;
-  box-shadow: 0 4px 16px rgba(4, 31, 30, 0.1) !important;
-}
-
-/* OTP 입력 */
-.cl-otpInputField {
-  height: 48px !important;
-  border-radius: 12px !important;
-  border: 1px solid #178A7A !important;
-  background-color: #F5F4EF !important;
-}
-
-/* 헤더, 푸터 숨기기 */
-.cl-header,
-.cl-footer,
-.cl-headerTitle,
-.cl-headerSubtitle {
-  display: none !important;
-}
-
-/* 소셜 로그인 숨기기 */
-.cl-socialButtonsBlock,
-.cl-socialButtonsBlockButton,
-.cl-socialButtonsDivider {
-  display: none !important;
-}
-
-/* 폼 레이아웃 */
-.cl-main,
-.cl-form {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 24px !important;
-  width: 100% !important;
-}
-
-/* 폼 필드 */
-.cl-formField {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-  width: 100% !important;
-  margin-bottom: 0 !important;
-}
-
-/* 라벨 */
-.cl-formFieldLabel,
-.cl-form label,
-.cl-main label {
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  color: #1A1918 !important;
-  margin-bottom: 6px !important;
-  display: block !important;
-}
-
-/* 입력 필드 래퍼 */
-.cl-formFieldInputWrapper {
-  width: 100% !important;
-  position: relative !important;
-  display: block !important;
-}
-
-/* 입력 필드 - 강제 스타일 */
-.cl-formFieldInput,
-.cl-identityPreview,
-input[type="email"].cl-formFieldInput,
-input[type="password"].cl-formFieldInput,
-input[type="text"].cl-formFieldInput,
-input.cl-formFieldInput,
-.cl-form input[type="email"],
-.cl-form input[type="password"],
-.cl-form input[type="text"],
-.cl-main input {
-  width: 100% !important;
-  height: 52px !important;
-  padding: 0 16px !important;
-  border-radius: 12px !important;
-  border: 2px solid #D4D3D0 !important;
-  background-color: #FFFFFF !important;
-  font-size: 16px !important;
-  font-family: 'Pretendard', 'Noto Sans KR', sans-serif !important;
-  color: #1A1918 !important;
-  transition: all 0.2s ease !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
-  outline: none !important;
-  -webkit-appearance: none !important;
-  appearance: none !important;
-}
-
-/* 입력 필드 플레이스홀더 */
-.cl-formFieldInput::placeholder,
-.cl-form input::placeholder,
-.cl-main input::placeholder {
-  color: #9C9B99 !important;
-  font-weight: 400 !important;
-  opacity: 1 !important;
-}
-
-/* 입력 필드 포커스 */
-.cl-formFieldInput:focus,
-.cl-formFieldInput:focus-within,
-.cl-form input:focus,
-.cl-main input:focus {
-  background-color: #FFFFFF !important;
-  border-color: #3D8A5A !important;
-  box-shadow: 0 0 0 4px rgba(61, 138, 90, 0.15) !important;
-  outline: none !important;
-}
-
-/* 비밀번호 표시 버튼 */
-.cl-formFieldInputShowPasswordButton {
-  color: #9C9B99 !important;
-  right: 12px !important;
-}
-
-.cl-formFieldInputShowPasswordButton:hover {
-  color: #6D6C6A !important;
-}
-
-.cl-formFieldInputShowPasswordIcon {
-  width: 18px !important;
-  height: 18px !important;
-}
-
-/* 에러 메시지 */
-.cl-formFieldErrorText,
-.cl-formFieldErrors {
-  font-size: 13px !important;
-  color: #D08068 !important;
-  margin-top: 4px !important;
-}
-
-/* 알림/에러 박스 */
-.cl-alert {
-  display: none !important;
-}
-
-/* 로그인 버튼 */
-.cl-formButtonPrimary,
-button[type="submit"].cl-formButtonPrimary,
-.cl-form button[type="submit"],
-.cl-main button[type="submit"] {
-  width: 100% !important;
-  height: 52px !important;
-  padding: 0 !important;
-  border-radius: 12px !important;
-  background: linear-gradient(135deg, #3D8A5A 0%, #4A9D68 100%) !important;
-  color: #FFFFFF !important;
-  font-size: 16px !important;
-  font-weight: 600 !important;
-  font-family: 'Pretendard', 'Noto Sans KR', sans-serif !important;
-  border: none !important;
-  box-shadow: 0 4px 12px rgba(61, 138, 90, 0.35) !important;
-  transition: all 0.2s ease !important;
-  cursor: pointer !important;
-}
-
-.cl-formButtonPrimary:hover,
-button[type="submit"].cl-formButtonPrimary:hover,
-.cl-form button[type="submit"]:hover,
-.cl-main button[type="submit"]:hover {
-  background: linear-gradient(135deg, #4A9D68 0%, #5AAF76 100%) !important;
-  box-shadow: 0 6px 20px rgba(61, 138, 90, 0.45) !important;
-  transform: translateY(-2px) !important;
-}
-
-.cl-formButtonPrimary:active,
-button[type="submit"].cl-formButtonPrimary:active {
-  transform: scale(0.98) !important;
-}
-
-/* 로딩 상태 버튼 */
-.cl-formButtonPrimaryLoading {
-  opacity: 0.8 !important;
-  cursor: wait !important;
-}
-
-/* 로딩 스피너 */
-.cl-spinner {
-  border-color: rgba(255, 255, 255, 0.3) !important;
-  border-top-color: #FFFFFF !important;
-}
-
-/* 비밀번호 찾기 링크 */
-.cl-footerAction {
-  display: flex !important;
-  justify-content: flex-end !important;
-  margin-top: 4px !important;
-}
-
-.cl-footerActionLink {
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  color: #3D8A5A !important;
-  text-decoration: none !important;
-}
-
-.cl-footerActionLink:hover {
-  color: #4D9B6A !important;
-}
-
-/* 회원가입 폼 - 약관 동의 */
-.cl-formHeader,
-.cl-formHeaderTitle,
-.cl-formHeaderSubtitle {
-  display: none !important;
-}
-
-/* 이메일/비밀번호 입력 아이콘 */
-.cl-internal-icon {
-  color: #9C9B99 !important;
-}
-
-/* 전화번호 입력 필드 */
-.cl-phoneInput {
-  height: 48px !important;
-  border-radius: 12px !important;
-  border: 1px solid #E5E4E1 !important;
-  background-color: #F5F4F1 !important;
-}
-
-/* 드롭다운 */
-.cl-dropdown {
-  border-radius: 12px !important;
-  border: 1px solid #E5E4E1 !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
-}
-
-/* OTP 입력 */
-.cl-otpInputField {
-  height: 48px !important;
-  border-radius: 12px !important;
-  border: 1px solid #E5E4E1 !important;
-  background-color: #F5F4F1 !important;
-}
-
-/* ========================================
-    Clerk 내부 요소 스타일 오버라이드
-    ======================================== */
-
-/* 구분선과 텍스트만 숨기기 */
-.cl-dividerLine,
-.cl-dividerText,
-.cl-divider {
-  display: none !important;
-}
-
-/* 빈 span만 숨기기 */
-span:empty {
-  display: none !important;
-}
-
-/* 플레이스홀더 스타일 */
-input::placeholder {
-  color: #8A9A96 !important;
-}
-
-/* Clerk 내부 요소 스타일 오버라이드 */
-.clerk-root-box,
-.clerk-card,
-[data-localization] {
-  background: transparent !important;
-}
-
-/* 빈 span만 숨기기 */
-span:empty {
-  display: none !important;
-}
-
-/* 플레이스홀더 스타일 */
-input::placeholder {
-  color: #9C9B99 !important;
-}
-
-/* Clerk 내부 요소 스타일 오버라이드 */
-.clerk-root-box,
-.clerk-card,
-[data-localization] {
-  background: transparent !important;
-}
-
-/* ========================================
-    Scrollbar Styling
-    ======================================== */
-
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: hsl(var(--gold));
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary) / 0.5);
-}
-
-/* Firefox Scrollbar */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--gold)) hsl(var(--muted));
 }

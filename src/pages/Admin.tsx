@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Users, Edit, Building2, MapPin, AlertCircle, Plus, ImagePlus, ShieldCheck, Trash2, Palette, BarChart3, Clock, Mail } from 'lucide-react';
+import { Loader2, Users, Edit, Building2, MapPin, AlertCircle, Plus, ImagePlus, ShieldCheck, Trash2, Palette, BarChart3, Clock, Mail, Ticket, KeyRound } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -22,30 +21,25 @@ import { Progress } from '@/components/ui/progress';
 import AdminHeader from '@/components/admin/AdminHeader';
 import StatsWidgets from '@/components/admin/StatsWidgets';
 import GlobalActivityFeed from '@/components/admin/GlobalActivityFeed';
-import StyleConfigModal from '@/components/admin/StyleConfigModal';
+import StyleConfigModal, { type StyleConfig } from '@/components/admin/StyleConfigModal';
 import UsageHistoryModal from '@/components/admin/UsageHistoryModal';
 
 interface Profile {
-  _id: string;
   id: string;
-  email?: string;
+  email: string;
   center_name: string;
-  region?: string;
-  department?: string;
+  region: string;
   plan_tier: string;
   monthly_limit: number;
   current_usage: number;
   is_active: boolean;
-  created_at: number;
-  writing_tone_prompt?: string | null;
+  created_at: string;
+  writing_tone_prompt: string | null;
   max_image_count: number;
-  style_config?: any;
-  lastActive?: number | null;
+  style_config: any;
+  // Analytics fields (computed)
+  lastActive?: Date | null;
   totalPosts?: number;
-  // New style settings
-  writing_style?: string;
-  content_length?: string;
-  use_emoji?: boolean;
 }
 
 interface Stats {
@@ -55,34 +49,17 @@ interface Stats {
   monthlyUsage: number;
 }
 
+// Plan tier default values
 const PLAN_DEFAULTS: Record<string, { monthlyLimit: number; maxImageCount: number }> = {
   trial: { monthlyLimit: 15, maxImageCount: 5 },
   basic: { monthlyLimit: 15, maxImageCount: 5 },
   premium: { monthlyLimit: 30, maxImageCount: 10 },
-  free: { monthlyLimit: 5, maxImageCount: 3 },
 };
 
 const Admin = () => {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  // Convex queries
-  const profilesData = useQuery(
-    api.admin.getProfilesWithAnalytics,
-    user?.id ? { adminUserId: user.id } : 'skip'
-  );
-
-  const statsData = useQuery(
-    api.admin.getAdminStats,
-    user?.id ? { adminUserId: user.id } : 'skip'
-  );
-
-  // Convex mutations
-  const updateProfile = useMutation(api.admin.adminUpdateProfile);
-  const updateUserRole = useMutation(api.admin.adminUpdateUserRole);
-  const deleteUser = useMutation(api.admin.adminDeleteUser);
-  const updateEmail = useMutation(api.admin.adminUpdateEmail);
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [stats, setStats] = useState<Stats>({ totalUsers: 0, pendingApproval: 0, todayPosts: 0, monthlyUsage: 0 });
@@ -92,6 +69,15 @@ const Admin = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Create user modal state
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createEmail, setCreateEmail] = useState('');
+  const [createPassword, setCreatePassword] = useState('');
+  const [createCenterName, setCreateCenterName] = useState('');
+  const [createRegion, setCreateRegion] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
+
   // Edit form state
   const [editCenterName, setEditCenterName] = useState('');
   const [editRegion, setEditRegion] = useState('');
@@ -100,9 +86,24 @@ const Admin = () => {
   const [editPlanTier, setEditPlanTier] = useState('trial');
   const [editMaxImageCount, setEditMaxImageCount] = useState(5);
   const [editIsAdminRole, setEditIsAdminRole] = useState(false);
+  const [showAdminWarning, setShowAdminWarning] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  
+  // Email edit state
   const [editEmail, setEditEmail] = useState('');
   const [originalEmail, setOriginalEmail] = useState('');
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [isEmailUpdating, setIsEmailUpdating] = useState(false);
+  
+  // Password edit state
+  const [newPassword, setNewPassword] = useState('');
+  const [isPasswordUpdating, setIsPasswordUpdating] = useState(false);
+  
+  // Original values for limit reduction warning
+  const [originalMonthlyLimit, setOriginalMonthlyLimit] = useState(0);
+  const [originalMaxImageCount, setOriginalMaxImageCount] = useState(0);
+  
+  // Limit reduction confirmation modal
+  const [showLimitReductionModal, setShowLimitReductionModal] = useState(false);
 
   // Delete user state
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -131,14 +132,102 @@ const Admin = () => {
   }, [user, isAdmin, authLoading, navigate, toast]);
 
   useEffect(() => {
-    if (profilesData) {
-      setProfiles(profilesData as Profile[]);
+    if (isAdmin) {
+      fetchData();
+    }
+  }, [isAdmin]);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch all profiles
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (profilesError) throw profilesError;
+
+      // Fetch admin roles
+      const { data: adminRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+
+      const adminUserIds = new Set(adminRoles?.map(r => r.user_id) || []);
+
+      // Filter out admin accounts - only show client companies
+      const clientProfiles = (profilesData || []).filter(
+        profile => !adminUserIds.has(profile.id)
+      );
+
+      // Fetch activity logs for last active time
+      const { data: activityLogs } = await supabase
+        .from('activity_logs')
+        .select('user_id, created_at')
+        .in('user_id', clientProfiles.map(p => p.id))
+        .order('created_at', { ascending: false });
+
+      // Group activity logs by user to get most recent
+      const lastActiveMap: Record<string, Date> = {};
+      activityLogs?.forEach(log => {
+        if (!lastActiveMap[log.user_id]) {
+          lastActiveMap[log.user_id] = new Date(log.created_at);
+        }
+      });
+
+      // Fetch total posts count per user
+      const { data: postCounts } = await supabase
+        .from('generated_posts')
+        .select('user_id');
+
+      // Count posts per user
+      const postsCountMap: Record<string, number> = {};
+      postCounts?.forEach(post => {
+        if (post.user_id) {
+          postsCountMap[post.user_id] = (postsCountMap[post.user_id] || 0) + 1;
+        }
+      });
+
+      // Enrich profiles with analytics
+      const enrichedProfiles: Profile[] = clientProfiles.map(profile => ({
+        ...profile,
+        lastActive: lastActiveMap[profile.id] || null,
+        totalPosts: postsCountMap[profile.id] || 0,
+      }));
+
+      setProfiles(enrichedProfiles);
+
+      // Calculate stats (excluding admins)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { count: todayPostsCount } = await supabase
+        .from('generated_posts')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', today.toISOString());
+
+      // Calculate monthly usage sum
+      const monthlyUsageSum = clientProfiles.reduce((sum, p) => sum + (p.current_usage || 0), 0);
+      const pendingCount = clientProfiles.filter(p => !p.is_active).length;
+
+      setStats({
+        totalUsers: clientProfiles.length,
+        pendingApproval: pendingCount,
+        todayPosts: todayPostsCount || 0,
+        monthlyUsage: monthlyUsageSum,
+      });
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: '데이터 로드 실패',
+        description: '데이터를 불러오는 중 오류가 발생했습니다.',
+        variant: 'destructive',
+      });
+    } finally {
       setIsLoading(false);
     }
-    if (statsData) {
-      setStats(statsData as Stats);
-    }
-  }, [profilesData, statsData]);
+  };
 
   const openEditDialog = async (profile: Profile) => {
     setSelectedProfile(profile);
@@ -146,27 +235,36 @@ const Admin = () => {
     setEditRegion(profile.region || '');
     setEditMonthlyLimit(profile.monthly_limit);
     setEditIsActive(profile.is_active);
-    setEditPlanTier(profile.plan_tier || 'trial');
+    setEditPlanTier(profile.plan_tier);
     setEditMaxImageCount(profile.max_image_count || 5);
+    setValidationError(null);
+    setShowAdminWarning(false);
+    
+    // Email edit state
     setEditEmail(profile.email || '');
     setOriginalEmail(profile.email || '');
-    setValidationError(null);
-    setEditIsAdminRole(false);
-
-    // Check if this user has admin role (에러 무시하고 다이얼로그 열기)
-    try {
-      const api = await import('../../convex/_generated/api');
-      const roleData = await (api as any).admin.getUserRoleByUserId({ userId: profile.id });
-      if (roleData?.role === 'admin') {
-        setEditIsAdminRole(true);
-      }
-    } catch (e) {
-      console.log('Could not fetch role, defaulting to user');
-    }
+    setIsEmailUpdating(false);
     
+    // Password edit state
+    setNewPassword('');
+    setIsPasswordUpdating(false);
+    
+    // Store original values for limit reduction warning
+    setOriginalMonthlyLimit(profile.monthly_limit);
+    setOriginalMaxImageCount(profile.max_image_count || 5);
+
+    // Check if this user has admin role
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', profile.id)
+      .maybeSingle();
+    
+    setEditIsAdminRole(roleData?.role === 'admin');
     setIsDialogOpen(true);
   };
 
+  // Handle plan tier change - update limits to plan defaults
   const handlePlanTierChange = (newPlanTier: string) => {
     setEditPlanTier(newPlanTier);
     const defaults = PLAN_DEFAULTS[newPlanTier];
@@ -176,13 +274,17 @@ const Admin = () => {
     }
   };
 
-  const handleSave = async () => {
-    if (!selectedProfile || !user?.id) return;
+  // Check if there are any limit reductions
+  const hasLimitReduction = editMonthlyLimit < originalMonthlyLimit || editMaxImageCount < originalMaxImageCount;
 
-    // Validation
+  // Attempt to save - may show confirmation modal first
+  const handleSaveClick = () => {
+    if (!selectedProfile) return;
+
+    // Validation: 활성화 시 센터명과 지역 필수
     if (editIsActive) {
       if (!editCenterName.trim() || editCenterName === '내 센터') {
-        setValidationError('서비스 활성화를 위해 병원명을 입력해주세요.');
+        setValidationError('서비스 활성화를 위해 센터명을 입력해주세요.');
         return;
       }
       if (!editRegion.trim()) {
@@ -192,38 +294,51 @@ const Admin = () => {
     }
 
     setValidationError(null);
-    setIsSaving(true);
 
+    // Show confirmation modal if there are limit reductions
+    if (hasLimitReduction) {
+      setShowLimitReductionModal(true);
+      return;
+    }
+
+    // No reduction warnings, proceed with save
+    performSave();
+  };
+
+  const performSave = async () => {
+    if (!selectedProfile) return;
+    setIsSaving(true);
     try {
-      await updateProfile({
-        adminUserId: user.id,
-        targetUserId: selectedProfile.id,
-        updates: {
+      // Update profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
           center_name: editCenterName,
           region: editRegion,
           monthly_limit: editMonthlyLimit,
           is_active: editIsActive,
           plan_tier: editPlanTier,
           max_image_count: editMaxImageCount,
-        },
-      });
+        })
+        .eq('id', selectedProfile.id);
 
-      // Update email if changed
-      if (editEmail !== originalEmail && editEmail.trim()) {
-        await updateEmail({
-          adminUserId: user.id,
-          targetUserId: selectedProfile.id,
-          newEmail: editEmail.trim(),
-        });
-      }
+      if (profileError) throw profileError;
 
       // Update role if changed
-      if (editIsAdminRole) {
-        await updateUserRole({
-          adminUserId: user.id,
-          targetUserId: selectedProfile.id,
-          role: 'admin',
-        });
+      const { data: currentRole } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', selectedProfile.id)
+        .maybeSingle();
+
+      const wasAdmin = currentRole?.role === 'admin';
+      if (wasAdmin !== editIsAdminRole) {
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .update({ role: editIsAdminRole ? 'admin' : 'user' })
+          .eq('user_id', selectedProfile.id);
+
+        if (roleError) throw roleError;
       }
 
       toast({
@@ -232,6 +347,7 @@ const Admin = () => {
       });
 
       setIsDialogOpen(false);
+      fetchData();
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
@@ -244,32 +360,193 @@ const Admin = () => {
     }
   };
 
-  const handleDeleteUser = async () => {
-    if (!userToDelete || !user?.id) return;
+  // Handle email update
+  const handleEmailUpdate = async () => {
+    if (!selectedProfile || !editEmail.trim()) return;
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editEmail)) {
+      toast({
+        title: '이메일 형식 오류',
+        description: '올바른 이메일 형식을 입력해주세요.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-    setIsDeleting(true);
+    // Skip if email hasn't changed
+    if (editEmail === originalEmail) {
+      return;
+    }
+
+    setIsEmailUpdating(true);
     try {
-      await deleteUser({
-        adminUserId: user.id,
-        targetUserId: userToDelete.id,
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: '로그인 필요',
+          description: '로그인이 필요합니다.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const response = await supabase.functions.invoke('admin-update-user-email', {
+        body: {
+          userId: selectedProfile.id,
+          newEmail: editEmail.trim(),
+        },
       });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
 
       toast({
-        title: '삭제 완료',
-        description: '업체가 성공적으로 삭제되었습니다.',
+        title: '이메일 변경 완료',
+        description: `이메일이 ${editEmail}(으)로 변경되었습니다.`,
       });
 
-      setDeleteConfirmOpen(false);
-      setUserToDelete(null);
+      setOriginalEmail(editEmail);
+      fetchData();
     } catch (error) {
-      console.error('Error deleting user:', error);
+      console.error('Error updating email:', error);
+      const errorMessage = error instanceof Error ? error.message : '이메일 변경 중 오류가 발생했습니다.';
       toast({
-        title: '삭제 실패',
-        description: '업체 삭제 중 오류가 발생했습니다.',
+        title: '이메일 변경 실패',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
-      setIsDeleting(false);
+      setIsEmailUpdating(false);
+    }
+  };
+
+  // Handle password update
+  const handlePasswordUpdate = async () => {
+    if (!selectedProfile || !newPassword.trim()) return;
+    
+    // Validate password length
+    if (newPassword.length < 6) {
+      toast({
+        title: '비밀번호 오류',
+        description: '비밀번호는 6자 이상이어야 합니다.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsPasswordUpdating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: '로그인 필요',
+          description: '로그인이 필요합니다.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const response = await supabase.functions.invoke('admin-update-user-password', {
+        body: {
+          userId: selectedProfile.id,
+          newPassword: newPassword.trim(),
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
+      toast({
+        title: '비밀번호 변경 완료',
+        description: '비밀번호가 성공적으로 변경되었습니다.',
+      });
+
+      setNewPassword('');
+    } catch (error) {
+      console.error('Error updating password:', error);
+      const errorMessage = error instanceof Error ? error.message : '비밀번호 변경 중 오류가 발생했습니다.';
+      toast({
+        title: '비밀번호 변경 실패',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsPasswordUpdating(false);
+    }
+  };
+
+  const openCreateDialog = () => {
+    setCreateEmail('');
+    setCreatePassword('');
+    setCreateCenterName('');
+    setCreateRegion('');
+    setCreateError(null);
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleCreateUser = async () => {
+    if (!createEmail || !createPassword || !createCenterName || !createRegion) {
+      setCreateError('모든 필드를 입력해주세요.');
+      return;
+    }
+
+    setCreateError(null);
+    setIsCreating(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setCreateError('로그인이 필요합니다.');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('admin-create-user', {
+        body: {
+          email: createEmail,
+          password: createPassword,
+          centerName: createCenterName,
+          region: createRegion,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
+      toast({
+        title: '등록 완료',
+        description: `${createCenterName} 업체가 성공적으로 등록되었습니다.`,
+      });
+
+      setIsCreateDialogOpen(false);
+      fetchData();
+    } catch (error) {
+      console.error('Error creating user:', error);
+      const errorMessage = error instanceof Error ? error.message : '업체 등록 중 오류가 발생했습니다.';
+      setCreateError(errorMessage);
+      toast({
+        title: '등록 실패',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -277,6 +554,7 @@ const Admin = () => {
     setActiveTab('companies');
   };
 
+  // Filter profiles by pending status
   const pendingProfiles = profiles.filter(p => !p.is_active);
   const activeProfiles = profiles.filter(p => p.is_active);
 
@@ -300,6 +578,7 @@ const Admin = () => {
       <AdminHeader />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        {/* Stats Widgets */}
         <StatsWidgets 
           totalUsers={stats.totalUsers}
           pendingApproval={stats.pendingApproval}
@@ -308,53 +587,67 @@ const Admin = () => {
           onPendingClick={handlePendingClick}
         />
 
+        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="bg-card border border-border/50 shadow-soft p-1 gap-1">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger 
+              value="overview" 
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-soft transition-all duration-300"
+            >
               📊 활동 모니터링
             </TabsTrigger>
-            <TabsTrigger value="companies" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger 
+              value="companies" 
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-soft transition-all duration-300"
+            >
               🏢 업체 관리
               {stats.pendingApproval > 0 && (
-                <Badge variant="destructive" className="ml-2 px-1.5 py-0.5 text-xs">
+                <Badge variant="destructive" className="ml-2 px-1.5 py-0.5 text-xs animate-pulse-soft">
                   {stats.pendingApproval}
                 </Badge>
               )}
             </TabsTrigger>
+
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
+          {/* Overview Tab - Activity Feed */}
+          <TabsContent value="overview" className="space-y-6 animate-fade-in">
             <GlobalActivityFeed />
           </TabsContent>
 
-          <TabsContent value="companies" className="space-y-6">
+          {/* Companies Tab */}
+          <TabsContent value="companies" className="space-y-6 animate-fade-in">
             {/* Pending Approvals Section */}
             {pendingProfiles.length > 0 && (
               <Card className="relative overflow-hidden bg-card border-secondary/40 shadow-soft">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-gold" />
                 <CardHeader className="bg-secondary/5 border-b border-secondary/20">
-                  <CardTitle className="text-secondary flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5" />
-                    승인 대기 중인 업체 ({pendingProfiles.length})
-                  </CardTitle>
-                  <CardDescription className="text-secondary/70">
-                    아래 업체들의 정보를 확인하고 승인해주세요
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-secondary flex items-center gap-2">
+                        <AlertCircle className="w-5 h-5" />
+                        승인 대기 중인 업체 ({pendingProfiles.length})
+                      </CardTitle>
+                      <CardDescription className="text-secondary/70">
+                        아래 업체들의 정보를 확인하고 승인해주세요
+                      </CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-muted/30">
-                        <TableHead>병원명</TableHead>
-                        <TableHead>지역</TableHead>
-                        <TableHead>이메일</TableHead>
-                        <TableHead>가입일</TableHead>
-                        <TableHead className="text-right">관리</TableHead>
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="text-muted-foreground font-semibold">센터명</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">지역</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">이메일</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">가입일</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold text-right">관리</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {pendingProfiles.map((profile) => (
-                        <TableRow key={profile.id} className="bg-secondary/5">
+                        <TableRow key={profile.id} className="bg-secondary/5 hover:bg-secondary/10 transition-colors">
                           <TableCell className="font-medium">
                             {profile.center_name === '내 센터' ? (
                               <span className="text-secondary italic">미등록</span>
@@ -364,7 +657,7 @@ const Admin = () => {
                           </TableCell>
                           <TableCell>
                             {profile.region ? (
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center gap-1 text-foreground/80">
                                 <MapPin className="w-3 h-3" />
                                 {profile.region}
                               </span>
@@ -372,12 +665,17 @@ const Admin = () => {
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
-                          <TableCell>{profile.email || '-'}</TableCell>
+                          <TableCell className="text-foreground/80">{profile.email}</TableCell>
                           <TableCell className="text-muted-foreground">
                             {format(new Date(profile.created_at), 'yyyy.MM.dd', { locale: ko })}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button size="sm" onClick={() => openEditDialog(profile)}>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => openEditDialog(profile)}
+                              className="bg-secondary hover:bg-secondary/90 text-secondary-foreground shadow-soft hover:shadow-card transition-all duration-300"
+                            >
                               승인하기
                             </Button>
                           </TableCell>
@@ -390,151 +688,188 @@ const Admin = () => {
             )}
 
             {/* Active Companies Section */}
-            <Card className="bg-card border-border/50 shadow-soft">
+            <Card className="relative overflow-hidden bg-card border-border/50 shadow-soft">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-forest" />
               <CardHeader className="border-b border-border/30">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="text-foreground flex items-center gap-2">
                       <Building2 className="w-5 h-5 text-primary" />
                       업체 목록
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-muted-foreground">
                       가입한 모든 업체를 관리합니다
                     </CardDescription>
                   </div>
+                  <Button 
+                    onClick={openCreateDialog} 
+                    className="gap-2 bg-gradient-forest hover:opacity-90 text-white shadow-soft hover:shadow-card transition-all duration-300"
+                  >
+                    <Plus className="w-4 h-4" />
+                    신규 업체 등록
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/30">
-                      <TableHead>병원명</TableHead>
-                      <TableHead>지역</TableHead>
-                      <TableHead>사용률</TableHead>
-                      <TableHead>최근 접속</TableHead>
-                      <TableHead>누적 생성</TableHead>
-                      <TableHead>상태</TableHead>
-                      <TableHead className="text-right">관리</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {profiles.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                          <div className="flex flex-col items-center gap-2">
-                            <Users className="w-8 h-8 text-muted-foreground/50" />
-                            가입된 업체가 없습니다
-                          </div>
-                        </TableCell>
+                <div className="overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="text-muted-foreground font-semibold">센터명</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">지역</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">사용률</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">최근 접속</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">누적 생성</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold">상태</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold text-right">관리</TableHead>
                       </TableRow>
-                    ) : (
-                      profiles.map((profile) => {
-                        const utilization = profile.monthly_limit > 0 
-                          ? Math.round((profile.current_usage / profile.monthly_limit) * 100) 
-                          : 0;
-                        
-                        return (
-                          <TableRow key={profile.id} className={!profile.is_active ? 'bg-muted/20' : ''}>
-                            <TableCell className="font-medium">
-                              <div>
-                                {profile.center_name === '내 센터' ? (
-                                  <span className="text-muted-foreground italic">미등록</span>
-                                ) : (
-                                  profile.center_name
-                                )}
-                                <p className="text-xs text-muted-foreground">{profile.email}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {profile.region ? (
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="w-3 h-3" />
-                                  {profile.region}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <Progress value={utilization} className="w-16 h-2" />
-                                  <span className="text-sm">{utilization}%</span>
+                    </TableHeader>
+                    <TableBody>
+                      {profiles.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                            <div className="flex flex-col items-center gap-2">
+                              <Users className="w-8 h-8 text-muted-foreground/50" />
+                              가입된 업체가 없습니다
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        profiles.map((profile) => {
+                          const utilization = profile.monthly_limit > 0 
+                            ? Math.round((profile.current_usage / profile.monthly_limit) * 100) 
+                            : 0;
+                          const utilizationColor = utilization >= 100 
+                            ? 'bg-destructive' 
+                            : utilization >= 70 
+                            ? 'bg-emerald-500' 
+                            : 'bg-muted-foreground/30';
+                          
+                          return (
+                            <TableRow 
+                              key={profile.id} 
+                              className={`hover:bg-muted/30 transition-colors ${!profile.is_active ? 'bg-muted/20' : ''}`}
+                            >
+                              <TableCell className="font-medium text-foreground">
+                                <div>
+                                  {profile.center_name === '내 센터' ? (
+                                    <span className="text-muted-foreground italic">미등록</span>
+                                  ) : (
+                                    profile.center_name
+                                  )}
+                                  <p className="text-xs text-muted-foreground">{profile.email}</p>
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                  ({profile.current_usage}/{profile.monthly_limit})
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {profile.lastActive ? (
-                                <span className="text-sm">
-                                  {formatDistanceToNow(new Date(profile.lastActive), { addSuffix: true, locale: ko })}
+                              </TableCell>
+                              <TableCell>
+                                {profile.region ? (
+                                  <span className="flex items-center gap-1 text-foreground/80">
+                                    <MapPin className="w-3 h-3 text-primary/60" />
+                                    {profile.region}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <Progress value={utilization} className={`w-16 h-2 [&>div]:${utilizationColor}`} />
+                                    <span className={`text-sm font-medium ${
+                                      utilization >= 100 ? 'text-destructive' 
+                                      : utilization >= 70 ? 'text-emerald-600 dark:text-emerald-400' 
+                                      : 'text-muted-foreground'
+                                    }`}>
+                                      {utilization}%
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    ({profile.current_usage}/{profile.monthly_limit})
+                                  </p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {profile.lastActive ? (
+                                  <div className="flex items-center gap-1 text-sm text-foreground/80">
+                                    <Clock className="w-3 h-3 text-primary/60" />
+                                    {formatDistanceToNow(profile.lastActive, { addSuffix: true, locale: ko })}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm">기록 없음</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-foreground font-medium">
+                                  {profile.totalPosts || 0}개
                                 </span>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">기록 없음</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <span className="font-medium">{profile.totalPosts || 0}개</span>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={profile.is_active ? 'default' : 'secondary'}>
-                                {profile.is_active ? '활성' : '비활성'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setUsageModalProfile(profile);
-                                    setUsageModalOpen(true);
-                                  }}
-                                  title="이용 통계"
+                              </TableCell>
+                              <TableCell>
+                                <Badge 
+                                  variant={profile.is_active ? 'default' : 'secondary'} 
+                                  className={`${
+                                    profile.is_active 
+                                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                      : 'bg-muted text-muted-foreground'
+                                  }`}
                                 >
-                                  <BarChart3 className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setStyleModalProfile(profile);
-                                    setStyleModalOpen(true);
-                                  }}
-                                  title="스타일 설정"
-                                >
-                                  <Palette className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openEditDialog(profile)}
-                                  title="정보 수정"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setUserToDelete(profile);
-                                    setDeleteConfirmOpen(true);
-                                  }}
-                                  className="text-destructive"
-                                  title="삭제"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
+                                  {profile.is_active ? '활성' : '비활성'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-0.5">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setUsageModalProfile(profile);
+                                      setUsageModalOpen(true);
+                                    }}
+                                    className="w-8 h-8 p-0 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                                    title="이용 통계"
+                                  >
+                                    <BarChart3 className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setStyleModalProfile(profile);
+                                      setStyleModalOpen(true);
+                                    }}
+                                    className="w-8 h-8 p-0 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-all"
+                                    title="스타일 설정"
+                                  >
+                                    <Palette className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openEditDialog(profile)}
+                                    className="w-8 h-8 p-0 text-primary hover:bg-primary/10 rounded-lg transition-all"
+                                    title="정보 수정"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setUserToDelete(profile);
+                                      setDeleteConfirmOpen(true);
+                                    }}
+                                    className="w-8 h-8 p-0 text-destructive hover:bg-destructive/10 rounded-lg transition-all"
+                                    title="삭제"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -553,50 +888,124 @@ const Admin = () => {
           </DialogHeader>
 
           <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            {/* 승인 대기 안내 */}
             {selectedProfile && !selectedProfile.is_active && (
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-                <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
-                  ⚠️ 승인 대기 중인 업체입니다
-                </p>
-                <p className="text-xs mt-1">서비스 활성화를 위해 병원명과 지역을 입력해주세요.</p>
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-800 dark:text-amber-200">
+                  <p className="font-medium">승인 대기 중인 업체입니다</p>
+                  <p className="text-xs mt-1">서비스 활성화를 위해 센터명과 지역을 입력해주세요.</p>
+                </div>
               </div>
             )}
 
+            {/* 유효성 검사 에러 */}
             {validationError && (
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-destructive">{validationError}</p>
               </div>
             )}
 
+            {/* 이메일 수정 */}
             <div className="space-y-2">
-              <Label htmlFor="edit-email">이메일 주소</Label>
-              <Input
-                id="edit-email"
-                type="email"
-                value={editEmail}
-                onChange={(e) => setEditEmail(e.target.value)}
-                placeholder="example@email.com"
-              />
+              <Label htmlFor="edit-email" className="flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                이메일 주소
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="example@email.com"
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEmailUpdate}
+                  disabled={isEmailUpdating || editEmail === originalEmail || !editEmail.trim()}
+                  className="shrink-0"
+                >
+                  {isEmailUpdating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    '변경'
+                  )}
+                </Button>
+              </div>
+              {editEmail !== originalEmail && editEmail.trim() && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  ⚠️ 이메일 변경 시 '변경' 버튼을 눌러주세요
+                </p>
+              )}
+            </div>
+
+            {/* 비밀번호 수정 */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-password" className="flex items-center gap-2">
+                <KeyRound className="w-4 h-4" />
+                비밀번호 변경
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="edit-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="새 비밀번호 (6자 이상)"
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePasswordUpdate}
+                  disabled={isPasswordUpdating || !newPassword.trim() || newPassword.length < 6}
+                  className="shrink-0"
+                >
+                  {isPasswordUpdating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    '변경'
+                  )}
+                </Button>
+              </div>
+              {newPassword.length > 0 && newPassword.length < 6 && (
+                <p className="text-xs text-destructive">
+                  비밀번호는 6자 이상이어야 합니다
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-center-name">병원명 *</Label>
+              <Label htmlFor="edit-center-name" className="flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                센터명 <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="edit-center-name"
                 value={editCenterName}
                 onChange={(e) => setEditCenterName(e.target.value)}
-                placeholder="예: 서울치과의원"
+                placeholder="예: 행복한주야간보호센터"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-region">지역 *</Label>
+              <Label htmlFor="edit-region" className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                지역 <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="edit-region"
                 value={editRegion}
                 onChange={(e) => setEditRegion(e.target.value)}
-                placeholder="예: 서울 강남구"
+                placeholder="예: 성남 분당"
               />
+              <p className="text-xs text-muted-foreground">
+                AI 글 생성 시 지역명이 자동 반영됩니다
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -625,6 +1034,11 @@ const Admin = () => {
               <p className="text-xs text-muted-foreground">
                 현재 사용량: {selectedProfile?.current_usage}회
               </p>
+              {editMonthlyLimit < originalMonthlyLimit && (
+                <p className="text-sm text-destructive">
+                  ⚠️ 월간 한도가 {originalMonthlyLimit}회→{editMonthlyLimit}회로 줄어듭니다.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -640,6 +1054,14 @@ const Admin = () => {
                 min={1}
                 max={20}
               />
+              <p className="text-xs text-muted-foreground">
+                한 번에 업로드 가능한 사진 개수 (기본: 5장)
+              </p>
+              {editMaxImageCount < originalMaxImageCount && (
+                <p className="text-sm text-destructive">
+                  ⚠️ 이미지 업로드 수가 {originalMaxImageCount}개→{editMaxImageCount}개로 줄어듭니다.
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-between">
@@ -650,13 +1072,72 @@ const Admin = () => {
                 onCheckedChange={setEditIsActive}
               />
             </div>
+
+            {/* Admin Role Section */}
+            <div className="space-y-3 pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-admin-role" className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-purple-600" />
+                  관리자(Admin) 권한 부여
+                </Label>
+                <Switch
+                  id="edit-admin-role"
+                  checked={editIsAdminRole}
+                  onCheckedChange={(checked) => {
+                    if (checked && !showAdminWarning) {
+                      setShowAdminWarning(true);
+                    } else {
+                      setEditIsAdminRole(checked);
+                      if (!checked) setShowAdminWarning(false);
+                    }
+                  }}
+                />
+              </div>
+
+              {showAdminWarning && !editIsAdminRole && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 space-y-2">
+                  <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+                    ⚠️ 이 사용자에게 시스템 전체 접근 권한을 부여하시겠습니까?
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    관리자는 모든 업체 정보를 조회/수정하고, 다른 사용자에게 권한을 부여할 수 있습니다.
+                  </p>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAdminWarning(false)}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="bg-purple-600 hover:bg-purple-700"
+                      onClick={() => {
+                        setEditIsAdminRole(true);
+                        setShowAdminWarning(false);
+                      }}
+                    >
+                      권한 부여
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {editIsAdminRole && (
+                <p className="text-xs text-purple-600 dark:text-purple-400">
+                  ✓ 이 사용자는 관리자 권한을 가집니다
+                </p>
+              )}
+            </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               취소
             </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button onClick={handleSaveClick} disabled={isSaving}>
               {isSaving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -664,6 +1145,91 @@ const Admin = () => {
                 </>
               ) : (
                 '저장'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create User Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>신규 업체 등록</DialogTitle>
+            <DialogDescription>
+              새로운 업체를 직접 등록합니다. 이메일 인증 없이 바로 이용 가능합니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {createError && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-destructive">{createError}</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="create-email">이메일 <span className="text-destructive">*</span></Label>
+              <Input
+                id="create-email"
+                type="email"
+                value={createEmail}
+                onChange={(e) => setCreateEmail(e.target.value)}
+                placeholder="example@email.com"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="create-password">초기 비밀번호 <span className="text-destructive">*</span></Label>
+              <Input
+                id="create-password"
+                type="password"
+                value={createPassword}
+                onChange={(e) => setCreatePassword(e.target.value)}
+                placeholder="최소 6자리"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="create-center-name" className="flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                센터명 <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="create-center-name"
+                value={createCenterName}
+                onChange={(e) => setCreateCenterName(e.target.value)}
+                placeholder="예: OO데이케어센터"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="create-region" className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                지역 <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="create-region"
+                value={createRegion}
+                onChange={(e) => setCreateRegion(e.target.value)}
+                placeholder="시, 군, 구 (예: 성남시 분당구)"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              취소
+            </Button>
+            <Button onClick={handleCreateUser} disabled={isCreating}>
+              {isCreating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  등록 중...
+                </>
+              ) : (
+                '등록'
               )}
             </Button>
           </DialogFooter>
@@ -682,11 +1248,34 @@ const Admin = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteUser}
+              className="bg-red-600 hover:bg-red-700"
+              onClick={async () => {
+                if (!userToDelete) return;
+                setIsDeleting(true);
+                try {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (!session) throw new Error('로그인이 필요합니다.');
+                  
+                  const response = await supabase.functions.invoke('admin-delete-user', {
+                    body: { userId: userToDelete.id },
+                  });
+                  
+                  if (response.error) throw new Error(response.error.message);
+                  if (response.data?.error) throw new Error(response.data.error);
+                  
+                  toast({ title: '삭제 완료', description: `${userToDelete.center_name} 업체가 삭제되었습니다.` });
+                  setDeleteConfirmOpen(false);
+                  fetchData();
+                } catch (error) {
+                  toast({ title: '삭제 실패', description: error instanceof Error ? error.message : '오류 발생', variant: 'destructive' });
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
               disabled={isDeleting}
-              className="bg-destructive hover:bg-destructive/90"
             >
-              {isDeleting ? '삭제 중...' : '삭제'}
+              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              삭제
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -698,29 +1287,53 @@ const Admin = () => {
           isOpen={styleModalOpen}
           onClose={() => setStyleModalOpen(false)}
           centerName={styleModalProfile.center_name}
-          region={styleModalProfile.region}
-          department={styleModalProfile.department}
-          maxImageCount={styleModalProfile.max_image_count}
-          initialConfig={styleModalProfile.style_config || { styleReferenceText: '', customPrompt: '' }}
-          userId={styleModalProfile.id}
-          initialWritingStyle={styleModalProfile.writing_style}
-          initialContentLength={styleModalProfile.content_length}
-          initialUseEmoji={styleModalProfile.use_emoji}
+          region={styleModalProfile.region || ''}
+          maxImageCount={styleModalProfile.max_image_count || 5}
+          initialConfig={styleModalProfile.style_config ? { styleReferenceText: (styleModalProfile.style_config as any).styleReferenceText || '', customPrompt: (styleModalProfile.style_config as any).customPrompt || '' } : { styleReferenceText: '', customPrompt: '' }}
+          onSave={async (config) => {
+            await supabase.from('profiles').update({ style_config: config as any }).eq('id', styleModalProfile.id);
+            fetchData();
+          }}
         />
       )}
 
       {/* Usage History Modal */}
-      {usageModalProfile && (
-        <UsageHistoryModal
-          isOpen={usageModalOpen}
-          onClose={() => setUsageModalOpen(false)}
-          profile={{
-            id: usageModalProfile.id,
-            center_name: usageModalProfile.center_name,
-            email: usageModalProfile.email || '',
-          }}
-        />
-      )}
+      <UsageHistoryModal
+        isOpen={usageModalOpen}
+        onClose={() => setUsageModalOpen(false)}
+        profile={usageModalProfile}
+      />
+
+      {/* Limit Reduction Confirmation Modal */}
+      <AlertDialog open={showLimitReductionModal} onOpenChange={setShowLimitReductionModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>한도 축소 확인</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">월간 한도가 줄어듭니다. 계속 저장하시겠습니까?</span>
+              {editMonthlyLimit < originalMonthlyLimit && (
+                <span className="block text-destructive">
+                  • 월간 한도: {originalMonthlyLimit}회 → {editMonthlyLimit}회
+                </span>
+              )}
+              {editMaxImageCount < originalMaxImageCount && (
+                <span className="block text-destructive">
+                  • 이미지 업로드 수: {originalMaxImageCount}개 → {editMaxImageCount}개
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowLimitReductionModal(false);
+              performSave();
+            }}>
+              확인
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useQuery } from 'convex/react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -9,19 +9,12 @@ import { Loader2, Eye, FileText, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useAuth } from '@/contexts/AuthContext';
-
-// Convex 쿼리 문자열
-const queries = {
-  getAllPosts: 'admin:getAllPosts' as const,
-  getAllProfiles: 'admin:getAllProfiles' as const,
-};
 
 interface Post {
-  _id: string;
+  id: string;
   content: string;
   image_paths: string[];
-  created_at: number;
+  created_at: string;
   user_id: string;
   center_name: string;
   region: string;
@@ -86,40 +79,56 @@ const parseStoryBlocks = (content: string, imagePaths: string[]) => {
 };
 
 const GlobalActivityFeed = () => {
-  const { user, isAdmin } = useAuth();
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Fetch all posts
-  const postsData = useQuery(
-    queries.getAllPosts as any,
-    { limit: 50 }
-  );
+  useEffect(() => {
+    fetchPosts();
+  }, []);
 
-  // Fetch all profiles for user info
-  const profilesData = useQuery(
-    queries.getAllProfiles as any,
-    user?.id ? { adminUserId: user.id } : 'skip'
-  );
+  const fetchPosts = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch posts with user profile info
+      const { data: postsData, error } = await supabase
+        .from('generated_posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-  const isLoading = postsData === undefined || profilesData === undefined;
+      if (error) throw error;
 
-  // Create profiles map
-  const profilesMap: Record<string, { center_name: string; region: string }> = {};
-  (profilesData || []).forEach(p => {
-    profilesMap[p.id] = { center_name: p.center_name, region: p.region || '' };
-  });
+      // Fetch profiles for user info
+      const userIds = [...new Set(postsData?.map(p => p.user_id).filter(Boolean) || [])];
+      
+      let profilesMap: Record<string, { center_name: string; region: string }> = {};
+      
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, center_name, region')
+          .in('id', userIds);
+        
+        profilesData?.forEach(p => {
+          profilesMap[p.id] = { center_name: p.center_name, region: p.region || '' };
+        });
+      }
 
-  // Enrich posts with profile info
-  const posts: Post[] = (postsData || []).map((post: any) => ({
-    _id: post._id,
-    content: post.content,
-    image_paths: post.image_paths || [],
-    created_at: post.created_at,
-    user_id: post.user_id,
-    center_name: profilesMap[post.user_id]?.center_name || '알 수 없음',
-    region: profilesMap[post.user_id]?.region || '',
-  }));
+      const enrichedPosts: Post[] = (postsData || []).map(post => ({
+        ...post,
+        center_name: profilesMap[post.user_id]?.center_name || '알 수 없음',
+        region: profilesMap[post.user_id]?.region || '',
+      }));
+
+      setPosts(enrichedPosts);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const openPostModal = (post: Post) => {
     setSelectedPost(post);
@@ -178,7 +187,7 @@ const GlobalActivityFeed = () => {
                   </TableRow>
                 ) : (
                   posts.map((post) => (
-                    <TableRow key={post._id} className="hover:bg-muted/30 transition-colors">
+                    <TableRow key={post.id} className="hover:bg-muted/30 transition-colors">
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium text-foreground">

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -6,13 +7,13 @@ import { Copy, Check, Clock, Info, Image as ImageIcon, Eye, X } from 'lucide-rea
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { useQuery } from 'convex/react';
-import { useAuth } from '@/contexts/AuthContext';
 
-// Convex 쿼리 참조
-const queries = {
-  getRecentPosts: 'posts:getRecentPosts' as const,
-};
+interface GeneratedPost {
+  id: string;
+  content: string;
+  image_paths: string[];
+  created_at: string;
+}
 
 interface StoryBlock {
   imageUrl?: string;
@@ -20,37 +21,56 @@ interface StoryBlock {
   text: string;
 }
 
-interface Post {
-  _id: string;
-  content: string;
-  image_paths: string[];
-  created_at: number;
-}
-
 const RecentPostsList = () => {
+  const [posts, setPosts] = useState<GeneratedPost[]>([]);
+  const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [selectedPost, setSelectedPost] = useState<GeneratedPost | null>(null);
   const [previewCopied, setPreviewCopied] = useState(false);
   const { toast } = useToast();
-  const { user, isAdmin, isDemo } = useAuth();
 
-  // Convex useQuery로 실시간 데이터 조회 (자동 동기화)
-  // 데모 사용자는 글을 볼 수 없음, 일반 사용자는 본인 글만, 관리자는 모든 글 조회
-  const posts = useQuery(
-    queries.getRecentPosts as any,
-    {
-      limit: 50,
-      userId: user?.id,
-      isAdmin: isAdmin,
-      isDemo: isDemo,
+  const fetchPosts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('generated_posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching posts:', error);
+        return;
+      }
+
+      setPosts(data || []);
+    } catch (err) {
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
     }
-  );
-  const loading = posts === undefined;
+  };
 
-  // 데모 사용자에게는 컴포넌트 자체를 표시하지 않음
-  if (isDemo) {
-    return null;
-  }
+  useEffect(() => {
+    fetchPosts();
+
+    const channel = supabase
+      .channel('generated_posts_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'generated_posts'
+        },
+        () => {
+          fetchPosts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const parseStoryBlocks = (content: string, imagePaths: string[]): StoryBlock[] => {
     const blocks: StoryBlock[] = [];
@@ -113,7 +133,7 @@ const RecentPostsList = () => {
     return firstLine || '오늘 하루도 따뜻했습니다';
   };
 
-  const copyPost = async (post: Post, setCopiedState?: (v: boolean) => void) => {
+  const copyPost = async (post: GeneratedPost, setCopiedState?: (v: boolean) => void) => {
     try {
       const title = getTitle(post.content);
       let html = `<h2>${title}</h2>\n\n`;
@@ -150,7 +170,7 @@ const RecentPostsList = () => {
         setCopiedState(true);
         setTimeout(() => setCopiedState(false), 3000);
       } else {
-        setCopiedId(post._id);
+        setCopiedId(post.id);
         setTimeout(() => setCopiedId(null), 3000);
       }
       
@@ -175,8 +195,8 @@ const RecentPostsList = () => {
     return lines.slice(0, 2).join(' ').substring(0, 120) + (lines.length > 2 ? '...' : '');
   };
 
-  const getTimeAgo = (timestamp: number): string => {
-    return formatDistanceToNow(new Date(timestamp), { 
+  const getTimeAgo = (dateString: string): string => {
+    return formatDistanceToNow(new Date(dateString), { 
       addSuffix: true, 
       locale: ko 
     });
@@ -213,16 +233,16 @@ const RecentPostsList = () => {
         </div>
 
         {/* Posts List */}
-        {posts?.length === 0 ? (
+        {posts.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Clock className="w-12 h-12 mx-auto mb-4 opacity-30" />
             <p>최근 24시간 내에 생성된 글이 없습니다.</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {posts?.map((post) => (
+            {posts.map((post) => (
               <article 
-                key={post._id}
+                key={post.id}
                 className="group p-4 bg-card border border-border rounded-xl hover:border-primary/30 hover:shadow-sm transition-all"
               >
                 <div className="flex gap-4">
@@ -268,7 +288,7 @@ const RecentPostsList = () => {
                           className="h-8 text-xs"
                           onClick={() => copyPost(post)}
                         >
-                          {copiedId === post._id ? (
+                          {copiedId === post.id ? (
                             <>
                               <Check className="w-3 h-3" />
                               복사됨

@@ -1,38 +1,20 @@
-import React, { createContext, useContext, useCallback } from 'react';
-import { useAuth, useUser, useClerk } from '@clerk/clerk-react';
-import { useQuery, useMutation } from 'convex/react';
-
-// Convex 함수 타입 정의 (codegen 이후에는 api import로 대체 가능)
-const queries = {
-  getProfileByUserId: 'users:getProfileByUserId' as const,
-  getUserRole: 'users:getUserRole' as const,
-};
-
-const mutations = {
-  logActivity: 'users:logActivity' as const,
-  createProfile: 'users:createProfile' as const,
-  createOrUpdateUserRole: 'users:createOrUpdateUserRole' as const,
-  linkPendingProfile: 'users:linkPendingProfile' as const,
-};
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Profile {
   id: string;
-  email: string | undefined;
+  email: string;
   center_name: string;
-  department?: string;
-  region: string | undefined;
+  region: string;
   plan_tier: 'free' | 'basic' | 'premium';
   monthly_limit: number;
   current_usage: number;
   is_active: boolean;
-  created_at: number;
+  created_at: string;
   writing_tone_prompt: string | null;
   max_image_count: number;
-  // New style settings
-  writing_style?: string;
-  content_length?: string;
-  use_emoji?: boolean;
-  style_config?: any;
+  subscription_expires_at: string | null;
 }
 
 interface UserRole {
@@ -40,238 +22,174 @@ interface UserRole {
 }
 
 interface AuthContextType {
-  user: ReturnType<typeof useUser>['user'];
+  user: User | null;
+  session: Session | null;
   profile: Profile | null;
   isAdmin: boolean;
   isLoading: boolean;
-  isSignedIn: boolean;
-  signIn: () => void;
-  signUp: () => void;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null; isAdmin?: boolean }>;
+  signUp: (email: string, password: string, metadata?: { center_name: string; region: string }) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
-  refreshProfile: () => void;
+  refreshProfile: () => Promise<void>;
   canGenerate: boolean;
-  // Demo mode
-  isDemo: boolean;
-  demoProfile: SimulationProfile | null;
-  startDemo: (hospitalName: string, region: string, department?: string) => void;
-  endDemo: () => void;
-}
-
-// Simulation profile type (same as used in usePhotoBlog)
-interface SimulationProfile {
-  id: string;
-  center_name: string;
-  region: string;
-  department?: string;
-  writing_tone_prompt: string | null;
-  style_config: any;
-  writing_style?: string;
-  content_length?: string;
-  use_emoji?: boolean;
-  // Demo mode specific fields
-  is_active: boolean;
-  current_usage: number;
-  monthly_limit: number;
-  plan_tier: 'free' | 'basic' | 'premium';
-  max_image_count: number;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isLoaded: isUserLoaded } = useUser();
-  const { isSignedIn, isLoaded: isAuthLoaded } = useAuth();
-  const { signOut: clerkSignOut, openSignIn, openSignUp } = useClerk();
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const userId = user?.id;
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
 
-  // Demo mode state
-  const [isDemo, setIsDemo] = React.useState(false);
-  const [demoProfile, setDemoProfile] = React.useState<SimulationProfile | null>(null);
-
-  // Start demo mode
-  const startDemo = useCallback((hospitalName: string, region: string, department?: string) => {
-    const demoUser: SimulationProfile = {
-      id: 'demo_user',
-      center_name: hospitalName,
-      region,
-      department,
-      writing_tone_prompt: null,
-      style_config: null,
-      writing_style: 'warm_friendly',
-      content_length: 'medium',
-      use_emoji: true,
-      is_active: true,
-      current_usage: 0,
-      monthly_limit: 9999, // 무제한
-      plan_tier: 'premium',
-      max_image_count: 10,
-    };
-    setDemoProfile(demoUser);
-    setIsDemo(true);
-  }, []);
-
-  // End demo mode
-  const endDemo = useCallback(() => {
-    setDemoProfile(null);
-    setIsDemo(false);
-  }, []);
-
-  // Convex 쿼리: 프로필 조회
-  const profileData = useQuery(
-    queries.getProfileByUserId as any,
-    userId ? { userId } : 'skip'
-  );
-
-  // Convex 쿼리: 권한 조회
-  const roleData = useQuery(
-    queries.getUserRole as any,
-    userId ? { userId } : 'skip'
-  );
-
-  // Convex 뮤테이션: 활동 로그
-  const logActivity = useMutation(mutations.logActivity as any);
-  const createProfile = useMutation(mutations.createProfile as any);
-  const createOrUpdateUserRole = useMutation(mutations.createOrUpdateUserRole as any);
-  const linkPendingProfile = useMutation(mutations.linkPendingProfile as any);
-
-  // 프로필 새로고침 (Convex 쿼리는 자동으로 리프레시됨)
-  const refreshProfile = useCallback(() => {
-    // Convex 쿼리는 반응형이므로 별도 새로고침 불필요
-  }, []);
-
-  // 로그인
-  const handleSignIn = useCallback(() => {
-    openSignIn();
-  }, [openSignIn]);
-
-  // 회원가입
-  const handleSignUp = useCallback(() => {
-    openSignUp();
-  }, [openSignUp]);
-
-  // 로그아웃
-  const handleSignOut = useCallback(async () => {
-    await clerkSignOut();
-  }, [clerkSignOut]);
-
-  // 프로필 데이터 변환
-  const profile: Profile | null = profileData ? {
-    id: profileData.id,
-    email: profileData.email,
-    center_name: profileData.center_name,
-    department: profileData.department,
-    region: profileData.region,
-    plan_tier: profileData.plan_tier as 'free' | 'basic' | 'premium',
-    monthly_limit: profileData.monthly_limit,
-    current_usage: profileData.current_usage,
-    is_active: profileData.is_active,
-    created_at: profileData.created_at,
-    writing_tone_prompt: profileData.writing_tone_prompt ?? null,
-    max_image_count: profileData.max_image_count,
-    // New style settings
-    writing_style: profileData.writing_style,
-    content_length: profileData.content_length,
-    use_emoji: profileData.use_emoji,
-    style_config: profileData.style_config,
-  } : null;
-
-  // 관리자 권한 확인
-  const isAdmin = (roleData as UserRole | null)?.role === 'admin';
-
-  // 로딩 상태
-  const isLoading = !isAuthLoaded || !isUserLoaded || (isSignedIn && userId && profileData === undefined);
-
-  // 현재 사용할 프로필 (데모 모드이면 demoProfile, 아니면 실제 profile)
-  const currentProfile = isDemo ? demoProfile : profile;
-
-  // 생성 가능 여부 확인
-  const canGenerate = currentProfile
-    ? (isAdmin || (currentProfile.is_active && currentProfile.current_usage < currentProfile.monthly_limit))
-    : false;
-
-  // 로그인 시 활동 로그 기록
-  React.useEffect(() => {
-    if (isSignedIn && userId && profileData) {
-      logActivity({
-        userId,
-        actionType: 'LOGIN',
-      }).catch(console.error);
+    if (error) {
+      console.error('Error fetching profile:', error);
+      return null;
     }
-  }, [isSignedIn, userId, profileData, logActivity]);
+    return data as Profile | null;
+  };
 
-  // 프로필이 없으면 자동 생성 또는 pending 프로필 연결
-  React.useEffect(() => {
-    const createOrLinkProfile = async () => {
-      // 로그인되어 있고, 프로필 쿼리가 완료되었고, 프로필이 없는 경우
-      if (isSignedIn && userId && user && profileData === null) {
-        console.log('Profile not found, attempting to link or create for:', userId);
-        
-        const userEmail = user.primaryEmailAddress?.emailAddress;
-        
-        try {
-          // 1. 먼저 pending 프로필 연결 시도
-          if (userEmail) {
-            console.log('Trying to link pending profile for email:', userEmail);
-            const result = await linkPendingProfile({
-              clerkUserId: userId,
-              email: userEmail,
-            });
-            console.log('Link pending profile result:', result);
+  const fetchUserRole = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching user role:', error);
+      return null;
+    }
+    return data as UserRole | null;
+  };
+
+  const refreshProfile = async () => {
+    if (user) {
+      const profileData = await fetchProfile(user.id);
+      setProfile(profileData);
+    }
+  };
+
+  useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        // Defer Supabase calls with setTimeout
+        if (session?.user) {
+          setTimeout(async () => {
+            const profileData = await fetchProfile(session.user.id);
+            setProfile(profileData);
+
+            const roleData = await fetchUserRole(session.user.id);
+            setIsAdmin(roleData?.role === 'admin');
             
-            if (result.linked || result.created) {
-              // 연결되었거나 새로 생성되었으면 종료
-              return;
-            }
-          }
-          
-          // 2. pending 프로필이 없으면 새로 생성
-          console.log('Creating new profile for:', userId);
-          const hospitalName = (user.unsafeMetadata?.hospital as string) || 
-                              (user.publicMetadata?.hospital as string) || 
-                              '병원명 미설정';
-          const department = (user.unsafeMetadata?.department as string) || 
-                            (user.publicMetadata?.department as string) || 
-                            undefined;
-          const region = (user.unsafeMetadata?.region as string) || 
-                        (user.publicMetadata?.region as string) || 
-                        '';
-          
-          await createProfile({
-            id: userId,
-            email: userEmail || undefined,
-            center_name: hospitalName,
-            department: department,
-            region: region,
-            plan_tier: 'free',
-          });
-          console.log('Profile created successfully');
-        } catch (error) {
-          console.error('Failed to create/link profile:', error);
+            setIsLoading(false);
+          }, 0);
+        } else {
+          setProfile(null);
+          setIsAdmin(false);
+          setIsLoading(false);
         }
       }
-    };
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        Promise.all([
+          fetchProfile(session.user.id),
+          fetchUserRole(session.user.id)
+        ]).then(([profileData, roleData]) => {
+          setProfile(profileData);
+          setIsAdmin(roleData?.role === 'admin');
+          setIsLoading(false);
+        });
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const signIn = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     
-    createOrLinkProfile();
-  }, [isSignedIn, userId, user, profileData, createProfile, linkPendingProfile]);
+    if (!error && data.user) {
+      // Log login activity
+      await supabase.from('activity_logs').insert({
+        user_id: data.user.id,
+        action_type: 'LOGIN',
+      });
+      
+      // Fetch role immediately and return it
+      const roleData = await fetchUserRole(data.user.id);
+      const userIsAdmin = roleData?.role === 'admin';
+      setIsAdmin(userIsAdmin);
+      
+      return { error: null, isAdmin: userIsAdmin };
+    }
+    
+    return { error: error as Error | null };
+  };
+
+  const signUp = async (email: string, password: string, metadata?: { center_name: string; region: string }) => {
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: metadata ? {
+          center_name: metadata.center_name,
+          region: metadata.region,
+        } : undefined,
+      },
+    });
+    return { error: error as Error | null };
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    setIsAdmin(false);
+  };
+
+  const canGenerate = profile ? (isAdmin || (profile.is_active && profile.current_usage < profile.monthly_limit)) : false;
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        profile: currentProfile as Profile | null,
+        session,
+        profile,
         isAdmin,
         isLoading,
-        isSignedIn: isSignedIn ?? false,
-        signIn: handleSignIn,
-        signUp: handleSignUp,
-        signOut: handleSignOut,
+        signIn,
+        signUp,
+        signOut,
         refreshProfile,
         canGenerate,
-        isDemo,
-        demoProfile,
-        startDemo,
-        endDemo,
       }}
     >
       {children}
@@ -279,13 +197,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuthContext = () => {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
-
-// 기존 useAuth 훅과의 호환성을 위해 별칭 export
-export { useAuthContext as useAuth };

@@ -1,4 +1,5 @@
-import { useQuery } from 'convex/react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -7,16 +8,10 @@ import { Loader2, Clock, FileText, TrendingUp, Calendar } from 'lucide-react';
 import { format, formatDistanceToNow, parseISO, getHours } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
-// Convex 쿼리 문자열
-const queries = {
-  getActivityLogsByUser: 'admin:getActivityLogsByUser' as const,
-  getPostCountByUser: 'posts:getPostCountByUser' as const,
-};
-
 interface ActivityLog {
-  _id: string;
+  id: string;
   action_type: string;
-  created_at: number;
+  created_at: string;
 }
 
 interface UsageHistoryModalProps {
@@ -30,26 +25,47 @@ interface UsageHistoryModalProps {
 }
 
 const UsageHistoryModal = ({ isOpen, onClose, profile }: UsageHistoryModalProps) => {
-  // Fetch activity logs
-  const logsData = useQuery(
-    queries.getActivityLogsByUser as any,
-    profile?.id ? { userId: profile.id, limit: 50 } : 'skip'
-  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [totalPosts, setTotalPosts] = useState(0);
 
-  // Fetch total posts count
-  const totalPosts = useQuery(
-    queries.getPostCountByUser as any,
-    profile?.id ? { userId: profile.id } : 'skip'
-  );
+  useEffect(() => {
+    if (isOpen && profile) {
+      fetchUsageData();
+    }
+  }, [isOpen, profile]);
 
-  const isLoading = logsData === undefined || totalPosts === undefined;
+  const fetchUsageData = async () => {
+    if (!profile) return;
+    
+    setIsLoading(true);
+    try {
+      // Fetch activity logs
+      const { data: logsData, error: logsError } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-  // Transform logs
-  const logs: ActivityLog[] = (logsData || []).map((log: any) => ({
-    _id: log._id,
-    action_type: log.action_type,
-    created_at: log.created_at,
-  }));
+      if (logsError) throw logsError;
+      setLogs(logsData || []);
+
+      // Fetch total posts count
+      const { count, error: countError } = await supabase
+        .from('generated_posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', profile.id);
+
+      if (!countError) {
+        setTotalPosts(count || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching usage data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getActionLabel = (action: string) => {
     switch (action) {
@@ -73,7 +89,7 @@ const UsageHistoryModal = ({ isOpen, onClose, profile }: UsageHistoryModalProps)
     // Analyze peak hours
     const hourCounts: Record<number, number> = {};
     generateLogs.forEach(log => {
-      const hour = getHours(new Date(log.created_at));
+      const hour = getHours(parseISO(log.created_at));
       hourCounts[hour] = (hourCounts[hour] || 0) + 1;
     });
 
@@ -113,7 +129,7 @@ const UsageHistoryModal = ({ isOpen, onClose, profile }: UsageHistoryModalProps)
             {/* Summary Cards */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 text-center">
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{totalPosts || 0}</p>
+                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{totalPosts}</p>
                 <p className="text-sm text-slate-500 dark:text-slate-400">누적 생성 글</p>
               </div>
               <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 text-center">
@@ -149,7 +165,7 @@ const UsageHistoryModal = ({ isOpen, onClose, profile }: UsageHistoryModalProps)
                         const action = getActionLabel(log.action_type);
                         return (
                           <div
-                            key={log._id}
+                            key={log.id}
                             className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700 last:border-0"
                           >
                             <div className="flex items-center gap-3">
@@ -157,7 +173,7 @@ const UsageHistoryModal = ({ isOpen, onClose, profile }: UsageHistoryModalProps)
                               <Badge className={action.color}>{action.label}</Badge>
                             </div>
                             <span className="text-sm text-slate-500 dark:text-slate-400">
-                              {format(new Date(log.created_at), 'yyyy-MM-dd HH:mm', { locale: ko })}
+                              {format(parseISO(log.created_at), 'yyyy-MM-dd HH:mm', { locale: ko })}
                             </span>
                           </div>
                         );
@@ -177,7 +193,7 @@ const UsageHistoryModal = ({ isOpen, onClose, profile }: UsageHistoryModalProps)
                     <div className="space-y-2 pr-4">
                       {loginLogs.map((log) => (
                         <div
-                          key={log._id}
+                          key={log.id}
                           className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700 last:border-0"
                         >
                           <div className="flex items-center gap-3">
@@ -186,10 +202,10 @@ const UsageHistoryModal = ({ isOpen, onClose, profile }: UsageHistoryModalProps)
                           </div>
                           <div className="text-right">
                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                              {format(new Date(log.created_at), 'yyyy-MM-dd HH:mm', { locale: ko })}
+                              {format(parseISO(log.created_at), 'yyyy-MM-dd HH:mm', { locale: ko })}
                             </p>
                             <p className="text-xs text-slate-400 dark:text-slate-500">
-                              {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ko })}
+                              {formatDistanceToNow(parseISO(log.created_at), { addSuffix: true, locale: ko })}
                             </p>
                           </div>
                         </div>

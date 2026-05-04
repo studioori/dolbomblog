@@ -1,56 +1,29 @@
 import { useState } from 'react';
-import { useMutation, useAction } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Palette, FileText, PenTool, FlaskConical, Sparkles, Copy, Check, Dna, MessageSquareText, AlertTriangle, Type, AlignLeft, Smile } from 'lucide-react';
+import { Loader2, Palette, FileText, PenTool, FlaskConical, Sparkles, Copy, Check, Dna, MessageSquareText } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import PhotoUploader, { PhotoItem } from '@/components/PhotoUploader';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 
 export interface StyleConfig {
   styleReferenceText: string;
   customPrompt: string;
 }
 
-// Writing style options (matching generateBlog.ts)
-const WRITING_STYLES = [
-  { value: 'warm_friendly', label: '💝 다정한 이웃', description: '구어체와 감탄사로 친근하게' },
-  { value: 'energetic_cheerful', label: '📣 활기찬 리포터', description: '에너지 넘치는 밝은 톤' },
-  { value: 'calm_professional', label: '🩺 차분한 전문가', description: '신뢰감 있는 전문적인 톤' },
-  { value: 'poetic_emotional', label: '🍂 감성 에세이', description: '서정적이고 고급스러운 문체' },
-  { value: 'concise_clear', label: '📝 담백한 관찰자', description: '객관적이고 명확한 묘사' },
-] as const;
-
-// Content length options
-const CONTENT_LENGTHS = [
-  { value: 'short', label: '간결하게', description: '3-4문단' },
-  { value: 'medium', label: '적당히', description: '5-6문단' },
-  { value: 'long', label: '자세하게', description: '7-8문단+' },
-] as const;
-
 interface StyleConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
   centerName: string;
   region?: string;
-  department?: string;
   maxImageCount: number;
   initialConfig: StyleConfig;
-  userId: string;
-  // New style settings props
-  initialWritingStyle?: string;
-  initialContentLength?: string;
-  initialUseEmoji?: boolean;
-  isDemo?: boolean;
-  onSaveSuccess?: () => void;
+  onSave: (config: StyleConfig) => Promise<void>;
 }
 
 const defaultConfig: StyleConfig = {
@@ -58,65 +31,30 @@ const defaultConfig: StyleConfig = {
   customPrompt: '',
 };
 
-const StyleConfigModal = ({
-  isOpen,
-  onClose,
-  centerName,
+const StyleConfigModal = ({ 
+  isOpen, 
+  onClose, 
+  centerName, 
   region = '',
-  department,
   maxImageCount,
-  initialConfig,
-  userId,
-  initialWritingStyle,
-  initialContentLength,
-  initialUseEmoji,
-  isDemo = false,
-  onSaveSuccess
+  initialConfig, 
+  onSave 
 }: StyleConfigModalProps) => {
   const [config, setConfig] = useState<StyleConfig>({ ...defaultConfig, ...initialConfig });
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  
-  // New style settings state
-  const [writingStyle, setWritingStyle] = useState(initialWritingStyle || 'warm_friendly');
-  const [contentLength, setContentLength] = useState(initialContentLength || 'medium');
-  const [useEmoji, setUseEmoji] = useState(initialUseEmoji !== undefined ? initialUseEmoji : true);
   
   // Test generation state
   const [testPhotos, setTestPhotos] = useState<PhotoItem[]>([]);
   const [isTestGenerating, setIsTestGenerating] = useState(false);
   const [testResult, setTestResult] = useState<{ text: string; images: string[] } | null>(null);
 
-  // Convex mutations and actions
-  const updateProfile = useMutation(api.users.updateProfile);
-  const generateBlogAction = useAction(api.generateBlog.generateBlog);
-
   const handleSave = async () => {
-    // Don't save in demo mode
-    if (isDemo) {
-      toast.info('데모 모드에서는 설정을 저장할 수 없습니다');
-      return;
-    }
-
     setIsSaving(true);
     try {
-      await updateProfile({
-        userId,
-        updates: {
-          style_reference_text: config.styleReferenceText,
-          style_config: config,
-          // New style settings
-          writing_style: writingStyle,
-          content_length: contentLength,
-          use_emoji: useEmoji,
-        },
-      });
+      await onSave(config);
       toast.success('스타일 설정이 저장되었습니다');
-      onSaveSuccess?.();
       onClose();
-    } catch (error) {
-      console.error('Failed to save style config:', error);
-      toast.error('스타일 설정 저장에 실패했습니다');
     } finally {
       setIsSaving(false);
     }
@@ -181,19 +119,6 @@ const StyleConfigModal = ({
     });
   };
 
-  /**
-   * 이미지 파일을 Data URL로 변환
-   * TODO: 추후 Cloudflare R2 등의 스토리지 서비스로 교체 예정
-   */
-  const fileToDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleTestGenerate = async () => {
     if (testPhotos.length === 0) {
       toast.error('테스트할 사진을 먼저 업로드해주세요');
@@ -204,44 +129,56 @@ const StyleConfigModal = ({
     setTestResult(null);
 
     try {
-      // TODO: 이미지 업로드 - 추후 Cloudflare R2 등의 스토리지 서비스로 교체 필요
-      // 현재는 Data URL을 사용하여 임시로 처리
-      // 프로덕션에서는 스토리지에 업로드 후 공개 URL을 사용해야 함
+      // Upload photos to storage and get URLs
       const uploadedPhotos = await Promise.all(
         testPhotos.map(async (photo, index) => {
-          const dataUrl = await fileToDataUrl(photo.file);
+          const fileName = `test-${Date.now()}-${index}.jpg`;
+          const filePath = `test/${fileName}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('daily-photos')
+            .upload(filePath, photo.file, { upsert: true });
+
+          if (uploadError) throw uploadError;
+
+          const { data: urlData } = supabase.storage
+            .from('daily-photos')
+            .getPublicUrl(filePath);
+
           return {
-            imageUrl: dataUrl,
+            imageUrl: urlData.publicUrl,
             keyword: photo.keyword || `사진 ${index + 1}`,
           };
         })
       );
 
-      // Convex Action을 사용하여 블로그 생성
-      const result = await generateBlogAction({
-        photos: uploadedPhotos,
-        centerName,
-        region,
-        department: department || undefined,
-        styleConfig: config,
-        // New style settings
-        writingStyle,
-        contentLength,
-        useEmoji,
+      // Call the edge function with current config
+      const { data, error } = await supabase.functions.invoke('generate-blog-vision', {
+        body: {
+          photos: uploadedPhotos,
+          centerName,
+          region,
+          styleConfig: config,
+        },
       });
 
+      if (error) throw error;
+
       // Format the result with image URLs
-      const formattedResult = `📌 제목: ${result.title}\n\n${result.content}\n\n${result.hashtags?.join(' ') || ''}`;
+      const formattedResult = `📌 제목: ${data.title}\n\n${data.content}\n\n${data.hashtags?.join(' ') || ''}`;
       setTestResult({
         text: formattedResult,
         images: uploadedPhotos.map(p => p.imageUrl),
       });
       toast.success('테스트 글 생성 완료!');
 
+      // Cleanup test photos from storage
+      const filePaths = testPhotos.map((_, index) => `test/test-${Date.now()}-${index}.jpg`);
+      await supabase.storage.from('daily-photos').remove(filePaths);
+
     } catch (error) {
       console.error('Test generation error:', error);
-      const errorMessage = error instanceof Error ? error.message : '테스트 생성 중 오류가 발생했습니다';
-      toast.error(errorMessage);
+      toast.error('테스트 생성 중 오류가 발생했습니다');
     } finally {
       setIsTestGenerating(false);
     }
@@ -265,16 +202,9 @@ const StyleConfigModal = ({
             </div>
             <div>
               <span className="block">AI 글쓰기 스타일 설정</span>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="secondary" className="text-xs font-normal">
-                  {centerName}
-                </Badge>
-                {isDemo && (
-                  <Badge variant="outline" className="text-xs font-normal border-amber-500/50 text-amber-600 dark:text-amber-400">
-                    🎭 데모 모드
-                  </Badge>
-                )}
-              </div>
+              <Badge variant="secondary" className="mt-1 text-xs font-normal">
+                {centerName}
+              </Badge>
             </div>
           </DialogTitle>
           <DialogDescription className="sr-only">
@@ -284,14 +214,6 @@ const StyleConfigModal = ({
 
         <ScrollArea className="flex-1 min-h-0 pr-4">
           <div className="space-y-5 py-5">
-            {isDemo && (
-              <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/30">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-700 dark:text-amber-400 text-sm">
-                  데모 모드에서는 스타일 테스트만 가능하며, 설정을 저장할 수 없습니다.
-                </AlertDescription>
-              </Alert>
-            )}
             {/* Section A: Style DNA (Reference Text) */}
             <div className="group relative overflow-hidden rounded-2xl border border-primary/20 bg-card shadow-soft transition-all duration-300 hover:shadow-card hover:border-primary/30">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-primary/80 to-secondary" />
@@ -318,9 +240,9 @@ const StyleConfigModal = ({
                   placeholder="AI가 흉내 내기를 원하는 블로그 글 본문을 통째로 붙여넣으세요.
 
 예시:
-안녕하세요~ 정성과 실력의 OO치과입니다! 🦷
-오늘도 환자분들의 건강한 미소를 위해 최선을 다하고 있어요.
-편안한 진료, 꼼꼼한 상담으로 여러분을 모시겠습니다..."
+안녕하세요~ 사랑과 정성의 OO주야간보호센터입니다! 🌸
+오늘 하루도 어르신들의 밝은 웃음소리로 가득했답니다.
+아침부터 불어오는 봄바람이 참 좋았는데요..."
                   rows={8}
                   className="resize-none text-sm bg-background/50 border-border/50 focus:bg-background transition-colors duration-200"
                 />
@@ -357,104 +279,15 @@ const StyleConfigModal = ({
                   placeholder="전화번호, 필수 해시태그, 또는 특별히 주의해야 할 점 등을 자유롭게 적어주세요.
 
 예시:
-- 글 마지막에 항상 '상담 문의: 02-1234-5678' 넣기
-- #OO동치과 해시태그 필수 포함
-- '환자분'이라는 표현 사용, 친근하고 전문적인 톤 유지"
+- 글 마지막에 항상 '상담 문의: 010-1234-5678' 넣기
+- #OO동노인돌봄 해시태그 필수 포함
+- '어르신'이라는 표현 대신 '어른신분'으로 통일"
                   rows={5}
                   className="resize-none text-sm bg-background/50 border-border/50 focus:bg-background transition-colors duration-200"
                 />
                 <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
                   <PenTool className="w-3.5 h-3.5 text-secondary" />
                   여기에 적은 내용은 AI가 글 작성 시 엄격히 따릅니다
-                </div>
-              </div>
-            </div>
-
-            <Separator className="my-6" />
-
-            {/* Section: Writing Style Settings */}
-            <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card shadow-soft transition-all duration-300 hover:shadow-card hover:border-primary/20">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/60 via-secondary/60 to-primary/60" />
-              <div className="p-5 space-y-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
-                    <Type className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <Label className="text-base font-semibold text-foreground flex items-center gap-2">
-                      글쓰기 스타일 설정
-                      <Badge variant="outline" className="text-[10px] font-normal text-primary border-primary/30">
-                        추천
-                      </Badge>
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      블로그 글의 톤과 길이, 이모지 사용을 설정하세요
-                    </p>
-                  </div>
-                </div>
-
-                {/* Writing Style Select */}
-                <div className="space-y-2">
-                  <Label htmlFor="writing-style" className="text-sm font-medium flex items-center gap-2">
-                    <PenTool className="w-4 h-4 text-muted-foreground" />
-                    글쓰기 톤
-                  </Label>
-                  <Select value={writingStyle} onValueChange={setWritingStyle}>
-                    <SelectTrigger id="writing-style" className="bg-background/50">
-                      <SelectValue placeholder="글쓰기 톤 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {WRITING_STYLES.map((style) => (
-                        <SelectItem key={style.value} value={style.value}>
-                          <div className="flex flex-col">
-                            <span>{style.label}</span>
-                            <span className="text-xs text-muted-foreground">{style.description}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Content Length Select */}
-                <div className="space-y-2">
-                  <Label htmlFor="content-length" className="text-sm font-medium flex items-center gap-2">
-                    <AlignLeft className="w-4 h-4 text-muted-foreground" />
-                    글 길이
-                  </Label>
-                  <Select value={contentLength} onValueChange={setContentLength}>
-                    <SelectTrigger id="content-length" className="bg-background/50">
-                      <SelectValue placeholder="글 길이 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CONTENT_LENGTHS.map((length) => (
-                        <SelectItem key={length.value} value={length.value}>
-                          <div className="flex flex-col">
-                            <span>{length.label}</span>
-                            <span className="text-xs text-muted-foreground">{length.description}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Use Emoji Toggle */}
-                <div className="flex items-center justify-between py-2">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="use-emoji" className="text-sm font-medium flex items-center gap-2">
-                      <Smile className="w-4 h-4 text-muted-foreground" />
-                      이모지 사용
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      글에 이모지를 포함할지 설정합니다
-                    </p>
-                  </div>
-                  <Switch
-                    id="use-emoji"
-                    checked={useEmoji}
-                    onCheckedChange={setUseEmoji}
-                  />
                 </div>
               </div>
             </div>
@@ -482,21 +315,11 @@ const StyleConfigModal = ({
                   </div>
                 </div>
 
-                {/* Test feature notice */}
-                <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/30">
-                  <AlertTriangle className="h-4 w-4 text-blue-600" />
-                  <AlertDescription className="text-blue-800 dark:text-blue-200 text-sm">
-                    테스트 기능은 Data URL을 사용하여 임시로 이미지를 처리합니다.
-                    대용량 이미지의 경우 처리 시간이 길어질 수 있습니다.
-                  </AlertDescription>
-                </Alert>
-
                 <PhotoUploader
                   photos={testPhotos}
                   onPhotosChange={setTestPhotos}
                   isLoading={isTestGenerating}
                   maxPhotos={maxImageCount}
-                  department={department}
                 />
 
                 <Button
@@ -558,25 +381,19 @@ const StyleConfigModal = ({
         </ScrollArea>
 
         <DialogFooter className="pt-4 border-t border-border/50 flex-shrink-0 gap-2 sm:gap-3">
-          <Button
-            variant="outline"
+          <Button 
+            variant="outline" 
             onClick={handleClose}
             className="flex-1 sm:flex-none h-11 border-border/50 hover:bg-muted/50"
           >
             취소
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={isSaving || isDemo}
+          <Button 
+            onClick={handleSave} 
+            disabled={isSaving} 
             className="flex-1 sm:flex-none h-11 bg-primary hover:bg-primary/90 shadow-soft hover:shadow-card transition-all duration-300"
-            title={isDemo ? '데모 모드에서는 저장할 수 없습니다' : undefined}
           >
-            {isDemo ? (
-              <>
-                <AlertTriangle className="mr-2 h-4 w-4" />
-                데모 모드
-              </>
-            ) : isSaving ? (
+            {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 저장 중...

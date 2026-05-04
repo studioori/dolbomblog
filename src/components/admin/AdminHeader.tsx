@@ -40,7 +40,7 @@ const AdminHeader = () => {
               <span className="text-gradient-forest">통합 관리 센터</span>
             </h1>
             <p className="text-xs text-muted-foreground font-medium">
-               Mediblog · 서비스 관리
+              돌봄 블로그 생성기 · 서비스 관리
             </p>
           </div>
         </Link>
@@ -73,7 +73,7 @@ const AdminHeader = () => {
                 <DropdownMenuLabel className="py-3">
                   <div className="flex flex-col gap-1">
                     <span className="font-semibold text-foreground">{profile?.center_name}</span>
-                    <span className="text-xs text-muted-foreground">{user?.primaryEmailAddress?.emailAddress}</span>
+                    <span className="text-xs text-muted-foreground">{user.email}</span>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-border/50" />
