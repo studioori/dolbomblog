@@ -41,8 +41,9 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
   
   const simulationProfile = options?.simulationProfile;
 
-  const uploadPhotos = async (photos: PhotoItem[]): Promise<string[]> => {
+  const uploadPhotos = async (photos: PhotoItem[]): Promise<{ urls: string[]; fileNames: string[] }> => {
     const urls: string[] = [];
+    const fileNames: string[] = [];
     const sessionId = `session-${Date.now()}`;
 
     for (let i = 0; i < photos.length; i++) {
@@ -66,9 +67,22 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
         .getPublicUrl(fileName);
 
       urls.push(urlData.publicUrl);
+      fileNames.push(fileName);
     }
 
-    return urls;
+    return { urls, fileNames };
+  };
+
+  const cleanupUploadedPhotos = async (fileNames: string[]) => {
+    if (fileNames.length === 0) return;
+
+    try {
+      await supabase.storage
+        .from('daily-photos')
+        .remove(fileNames);
+    } catch (err) {
+      console.warn('Failed to cleanup uploaded photos:', err);
+    }
   };
 
   const uploadAndGenerate = async (photos: PhotoItem[]) => {
@@ -85,9 +99,12 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
     setError(null);
     setIsUploading(true);
 
+    let uploadedFileNames: string[] = [];
+
     try {
       // Step 1: Upload photos to storage
-      const urls = await uploadPhotos(photos);
+      const { urls, fileNames } = await uploadPhotos(photos);
+      uploadedFileNames = fileNames;
       setUploadedUrls(urls);
 
       setIsUploading(false);
@@ -96,7 +113,7 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
       // Step 2: Call AI vision function with center name
       // Use simulation profile if admin is testing, otherwise use own profile
       const targetProfile = simulationProfile || profile;
-      
+
       const photosData = photos.map((photo, index) => ({
         imageUrl: urls[index],
         keyword: photo.keyword || '',
@@ -109,8 +126,8 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
         .replace(/\{\{CURRENT_DATE\}\}/g, currentDateStr);
 
       const { data, error: fnError } = await supabase.functions.invoke('generate-blog-vision', {
-        body: { 
-          photos: photosData, 
+        body: {
+          photos: photosData,
           centerName: targetProfile.center_name,
           region: targetProfile.region || '',
           writingTonePrompt: processedTonePrompt || null,
@@ -136,7 +153,7 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
 
       // Save to database for 24h history
       const fullContent = `${blogData.title}\n\n${blogData.content}\n\n${blogData.hashtags.join(' ')}`;
-      
+
       const { error: saveError } = await supabase
         .from('generated_posts')
         .insert({
@@ -149,17 +166,30 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
         console.warn('Failed to save post to history:', saveError);
       }
 
-      // Increment usage count and log activity
-      await supabase.rpc('increment_usage', { _user_id: user.id });
-      await supabase.from('activity_logs').insert({
+      // Increment usage count and log activity (only on complete success)
+      const { error: usageError } = await supabase.rpc('increment_usage', { _user_id: user.id });
+      if (usageError) {
+        console.warn('Failed to increment usage:', usageError);
+      }
+
+      const { error: logError } = await supabase.from('activity_logs').insert({
         user_id: user.id,
         action_type: 'GENERATE_POST',
       });
+      if (logError) {
+        console.warn('Failed to log activity:', logError);
+      }
+
       refreshProfile();
 
     } catch (err) {
       console.error('Error in uploadAndGenerate:', err);
       setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+
+      // Cleanup uploaded photos on failure
+      if (uploadedFileNames.length > 0) {
+        await cleanupUploadedPhotos(uploadedFileNames);
+      }
     } finally {
       setIsUploading(false);
       setIsGenerating(false);
