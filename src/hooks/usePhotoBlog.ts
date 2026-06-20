@@ -14,7 +14,7 @@ interface SimulationProfile {
   center_name: string;
   region: string;
   writing_tone_prompt: string | null;
-  style_config: any;
+  style_config: Record<string, unknown> | null;
 }
 
 interface UsePhotoBlogOptions {
@@ -72,17 +72,13 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
       }
 
       return { urls, fileNames };
-    } catch (err) {
+    } catch (originalError) {
       // Cleanup previously uploaded files on partial failure
+      // Keep cleanup exception separate from original error
       if (fileNames.length > 0) {
-        const { error: cleanupError } = await supabase.storage
-          .from('daily-photos')
-          .remove(fileNames);
-        if (cleanupError) {
-          console.warn('Failed to cleanup during upload failure:', cleanupError);
-        }
+        await cleanupUploadedPhotos(fileNames);
       }
-      throw err;
+      throw originalError;
     }
   };
 
@@ -148,7 +144,7 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
           centerName: targetProfile.center_name,
           region: targetProfile.region || '',
           writingTonePrompt: processedTonePrompt || null,
-          styleConfig: (targetProfile as any).style_config || null
+          styleConfig: targetProfile.style_config || null
         },
       });
 

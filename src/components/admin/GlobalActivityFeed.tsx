@@ -45,8 +45,8 @@ const GlobalActivityFeed = () => {
 
       // Fetch profiles for user info
       const userIds = [...new Set(postsData?.map(p => p.user_id).filter(Boolean) || [])];
-      
-      let profilesMap: Record<string, { center_name: string; region: string }> = {};
+
+      const profilesMap: Record<string, { center_name: string; region: string }> = {};
       
       if (userIds.length > 0) {
         const { data: profilesData } = await supabase
@@ -211,11 +211,10 @@ const GlobalActivityFeed = () => {
                   wordBreak: 'keep-all',
                 }}
               >
-                {selectedPost && parseStoryBlocks(selectedPost.content, selectedPost.image_paths || [], { removeHtml: true, allowFallback: true }).map((block, index) => {
-                  if (block.imageUrl) {
-                    return (
+                {selectedPost && parseStoryBlocks(selectedPost.content, selectedPost.image_paths || [], { removeHtml: true, allowFallback: true }).map((block, index) => (
+                  <div key={index}>
+                    {block.imageUrl && (
                       <img
-                        key={index}
                         src={block.imageUrl}
                         alt={`블로그 이미지 ${(block.imageIndex ?? 0) + 1}`}
                         style={{
@@ -227,20 +226,19 @@ const GlobalActivityFeed = () => {
                         }}
                         className="shadow-soft"
                       />
-                    );
-                  }
-                  return (
-                    <p
-                      key={index}
-                      style={{
-                        marginBottom: '1em',
-                        whiteSpace: 'pre-wrap',
-                      }}
-                    >
-                      {block.text}
-                    </p>
-                  );
-                })}
+                    )}
+                    {block.text && (
+                      <p
+                        style={{
+                          marginBottom: '1em',
+                          whiteSpace: 'pre-wrap',
+                        }}
+                      >
+                        {block.text}
+                      </p>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           </ScrollArea>
