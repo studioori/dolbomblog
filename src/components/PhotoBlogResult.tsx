@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Copy, Check, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { parseStoryBlocks } from '@/lib/storyBlocks';
 
 interface PhotoBlogResultProps {
   title: string;
@@ -9,12 +10,6 @@ interface PhotoBlogResultProps {
   hashtags: string[];
   imageUrls: string[];
   onReset: () => void;
-}
-
-interface StoryBlock {
-  imageUrl?: string;
-  imageIndex?: number;
-  text: string;
 }
 
 const PhotoBlogResult = ({ 
@@ -77,85 +72,7 @@ const PhotoBlogResult = ({
     }
   };
 
-  /**
-   * Parse content into Story Blocks (이미지 우선 구조)
-   * 
-   * 구조: [도입부 텍스트] → [IMAGE_1] → [텍스트1] → [IMAGE_2] → [텍스트2] → ...
-   * 
-   * 로직:
-   * 1. 첫 번째 이미지 이전 텍스트 → 별도 텍스트 블록 (도입부)
-   * 2. 이미지 만남 → 새 이미지 블록 생성
-   * 3. 이미지 뒤 텍스트 → 해당 이미지 블록에 추가
-   * 4. 마지막 이미지 이후 텍스트 → 마지막 이미지 블록에 추가
-   */
-  const parseStoryBlocks = (): StoryBlock[] => {
-    const blocks: StoryBlock[] = [];
-    const placeholderRegex = /\[IMAGE_PLACEHOLDER_(\d+)\]/g;
-    
-    let lastIndex = 0;
-    let match;
-
-    placeholderRegex.lastIndex = 0;
-
-    while ((match = placeholderRegex.exec(content)) !== null) {
-      // 이미지 플레이스홀더 이전의 텍스트 추출
-      const textBeforeImage = content.slice(lastIndex, match.index).trim();
-      const imageIndex = parseInt(match[1]) - 1;
-      
-      if (imageIndex >= 0 && imageIndex < imageUrls.length) {
-        // 이전 텍스트 처리
-        if (textBeforeImage) {
-          if (blocks.length > 0 && blocks[blocks.length - 1].imageUrl) {
-            // 이전 블록이 이미지면 → 해당 이미지의 설명 텍스트로 추가
-            blocks[blocks.length - 1].text += (blocks[blocks.length - 1].text ? '\n' : '') + textBeforeImage;
-          } else {
-            // 이전 블록이 없거나 텍스트 블록이면 → 도입부 텍스트로 처리
-            if (blocks.length > 0) {
-              blocks[blocks.length - 1].text += '\n' + textBeforeImage;
-            } else {
-              blocks.push({ text: textBeforeImage });
-            }
-          }
-        }
-        
-        // 새 이미지 블록 생성 (텍스트는 비워둠, 뒤에 오는 텍스트가 채워짐)
-        blocks.push({
-          imageUrl: imageUrls[imageIndex],
-          imageIndex: imageIndex,
-          text: ''
-        });
-      }
-
-      lastIndex = match.index + match[0].length;
-    }
-
-    // 마지막 이미지 이후의 텍스트 처리
-    if (lastIndex < content.length) {
-      const remainingText = content.slice(lastIndex).trim();
-      if (remainingText) {
-        if (blocks.length > 0 && blocks[blocks.length - 1].imageUrl) {
-          // 마지막 블록이 이미지면 → 해당 이미지의 설명 텍스트로 추가
-          blocks[blocks.length - 1].text += (blocks[blocks.length - 1].text ? '\n' : '') + remainingText;
-        } else {
-          // 이미지 블록이 없거나 마지막이 텍스트 블록이면 → 새 텍스트 블록 생성
-          if (blocks.length > 0) {
-            blocks[blocks.length - 1].text += '\n' + remainingText;
-          } else {
-            blocks.push({ text: remainingText });
-          }
-        }
-      }
-    }
-
-    // 이미지가 없고 텍스트만 있는 경우
-    if (blocks.length === 0 && content.trim()) {
-      blocks.push({ text: content.trim() });
-    }
-
-    return blocks;
-  };
-
-  const storyBlocks = parseStoryBlocks();
+  const storyBlocks = parseStoryBlocks(content, imageUrls);
 
   return (
     <div className="w-full animate-fade-in">

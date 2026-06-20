@@ -7,18 +7,13 @@ import { Copy, Check, Clock, Info, Image as ImageIcon, Eye, X } from 'lucide-rea
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { parseStoryBlocks } from '@/lib/storyBlocks';
 
 interface GeneratedPost {
   id: string;
   content: string;
   image_paths: string[];
   created_at: string;
-}
-
-interface StoryBlock {
-  imageUrl?: string;
-  imageIndex?: number;
-  text: string;
 }
 
 const RecentPostsList = () => {
@@ -71,61 +66,6 @@ const RecentPostsList = () => {
       supabase.removeChannel(channel);
     };
   }, []);
-
-  const parseStoryBlocks = (content: string, imagePaths: string[]): StoryBlock[] => {
-    const blocks: StoryBlock[] = [];
-    const placeholderRegex = /\[IMAGE_PLACEHOLDER_(\d+)\]/g;
-    
-    let lastIndex = 0;
-    let match;
-    let currentText = '';
-
-    placeholderRegex.lastIndex = 0;
-
-    while ((match = placeholderRegex.exec(content)) !== null) {
-      if (match.index > lastIndex) {
-        currentText += content.slice(lastIndex, match.index);
-      }
-
-      const imageIndex = parseInt(match[1]) - 1;
-      
-      if (imageIndex >= 0 && imageIndex < imagePaths.length) {
-        if (currentText.trim() && blocks.length > 0) {
-          blocks[blocks.length - 1].text += currentText;
-          currentText = '';
-        } else if (currentText.trim()) {
-          blocks.push({ text: currentText.trim() });
-          currentText = '';
-        }
-        
-        blocks.push({
-          imageUrl: imagePaths[imageIndex],
-          imageIndex: imageIndex,
-          text: ''
-        });
-      }
-
-      lastIndex = match.index + match[0].length;
-    }
-
-    if (lastIndex < content.length) {
-      currentText += content.slice(lastIndex);
-    }
-
-    if (currentText.trim()) {
-      if (blocks.length > 0 && blocks[blocks.length - 1].imageUrl) {
-        blocks[blocks.length - 1].text = currentText.trim();
-      } else {
-        blocks.push({ text: currentText.trim() });
-      }
-    }
-
-    if (blocks.length === 0 && content.trim()) {
-      blocks.push({ text: content.trim() });
-    }
-
-    return blocks;
-  };
 
   const getTitle = (content: string): string => {
     const lines = content.split('\n').filter(l => l.trim());

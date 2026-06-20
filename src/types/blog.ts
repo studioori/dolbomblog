@@ -74,6 +74,12 @@ export const CATEGORIES: CategoryInfo[] = [
   },
 ];
 
+export interface StoryBlock {
+  imageUrl?: string;
+  imageIndex?: number;
+  text: string;
+}
+
 export const REACTION_KEYWORDS = [
   '환하게 웃으시며',
   '집중하시는 눈빛으로',
