@@ -138,13 +138,36 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
       const processedTonePrompt = (targetProfile.writing_tone_prompt || '')
         .replace(/\{\{CURRENT_DATE\}\}/g, currentDateStr);
 
+      // 최근 4주 글의 제목·도입부 → 도입 중복 회피용으로 전달
+      // generated_posts는 24h 후 삭제되므로 별도 장기보존 테이블(post_style_history)에서 조회
+      let recentSamples: { title: string; opening: string }[] = [];
+      {
+        const fourWeeksAgo = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: recent, error: recentErr } = await supabase
+          .from('post_style_history')
+          .select('title, opening')
+          .eq('user_id', user.id)
+          .gte('created_at', fourWeeksAgo)
+          .order('created_at', { ascending: false })
+          .limit(8);
+        if (recentErr) {
+          console.warn('Failed to fetch recent style history:', recentErr.message);
+        } else {
+          recentSamples = (recent || []).map((r) => ({
+            title: r.title || '',
+            opening: (r.opening || '').slice(0, 60),
+          }));
+        }
+      }
+
       const { data, error: fnError } = await supabase.functions.invoke('generate-blog-vision', {
         body: {
           photos: photosData,
           centerName: targetProfile.center_name,
           region: targetProfile.region || '',
           writingTonePrompt: processedTonePrompt || null,
-          styleConfig: targetProfile.style_config || null
+          styleConfig: targetProfile.style_config || null,
+          recentSamples,
         },
       });
 
@@ -177,6 +200,19 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
 
       if (saveError) {
         console.warn('Failed to save post to history:', saveError);
+      }
+
+      // Save lightweight style history (장기 보존 — 도입부 중복 회피용)
+      {
+        const titleLine = (blogData.content || '').split('\n').map((l) => l.trim()).filter(Boolean);
+        const { error: histError } = await supabase.from('post_style_history').insert({
+          user_id: user.id,
+          title: blogData.title || '',
+          opening: (titleLine[0] || '').slice(0, 120),
+        });
+        if (histError) {
+          console.warn('Failed to save style history:', histError.message);
+        }
       }
 
       // Increment usage count and log activity (only on complete success)

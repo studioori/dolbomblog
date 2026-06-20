@@ -59,6 +59,30 @@ export type Database = {
         }
         Relationships: []
       }
+      post_style_history: {
+        Row: {
+          created_at: string
+          id: string
+          opening: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          opening?: string
+          title?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          opening?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           center_name: string

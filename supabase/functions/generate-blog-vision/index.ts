@@ -1,4 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import {
+  BANNED_WORDS,
+  BANNED_OPENERS,
+  OVERUSED_TERMS,
+  BANNED_PATTERNS,
+  BANNED_VISUAL,
+  findViolations,
+  sanitize,
+} from "./guards.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +18,12 @@ const corsHeaders = {
 interface StyleConfig {
   styleReferenceText?: string;
   customPrompt?: string;
+}
+
+// 최근 생성글 샘플 (도입부 중복 회피용)
+interface RecentSample {
+  title?: string;
+  opening?: string;
 }
 
 // 5 Distinct Writing Personas (랜덤 스타일 정의)
@@ -35,18 +50,63 @@ const stylePersonas = [
   }
 ];
 
-// Select random persona
-const getRandomPersona = () => {
-  return stylePersonas[Math.floor(Math.random() * stylePersonas.length)];
-};
+// ── 매 호출마다 무작위 조합되는 '작문 변주' 모듈 ──────────────
+// 핵심: 예시 '문장'이 아니라 '방식'만 지시 → 모델이 베낄 표현을 주지 않는다.
+
+// 1) 도입 전략
+const openingStrategies = [
+  "한 어르신의 작은 행동(손짓·표정·말 한마디) 클로즈업으로 시작하세요. 날씨·계절·센터 소개로 시작하지 마세요.",
+  "들려온 '소리' 하나로 첫 문장을 여세요. (웃음·노랫가락·박수 등 — 단 셔틀버스/문 여는 장면은 금지)",
+  "어르신이 실제로 했을 법한 대사 한마디를 따옴표로 던지며 시작하세요.",
+  "오늘 가장 인상 깊었던 '한 장면'을 영화의 한 컷처럼 묘사하며 시작하세요.",
+  "보호자에게 말을 거는 질문으로 시작하세요. 단 '~순간이 언제인지 아시나요' 류 상투구는 금지.",
+  "사물·도구 하나(색연필·공·손수건 등)에 초점을 맞춰 시작하세요.",
+  "활동이 끝난 뒤의 여운에서 시작해, 시간을 거슬러 거꾸로 풀어가세요.",
+  "센터 안의 구체적 디테일(빛·소리·냄새) 하나로 시작하되 '따뜻한/활기찬' 형용사는 쓰지 마세요.",
+];
+
+// 2) 구조 전략
+const structureStrategies = [
+  "시간 순서(아침→점심→오후)를 그대로 따르지 말고, 하나의 활동에 깊게 집중해 서술하세요.",
+  "두 어르신의 대비되는 모습을 교차하며 전개하세요.",
+  "활동을 나열하지 말고, '처음→나중'의 변화 하나를 중심으로 흐름을 잡으세요.",
+  "각 사진을 독립된 짧은 에피소드로 다루되 하나의 감정선으로 묶으세요.",
+  "기승전결을 따르기보다 '하루 중 가장 빛난 한 순간'을 중심에 두고 나머지는 배경으로 두세요.",
+];
+
+// 3) 서술 관점
+const perspectiveStrategies = [
+  "관찰자 시점으로, 감정 형용사 없이 보이는 사실 위주로 서술하세요.",
+  "1인칭 사회복지사의 솔직한 속마음을 담되 '보람'이라는 단어는 쓰지 마세요.",
+  "어르신 한 분의 입장에 가까이 다가가 그분의 경험처럼 서술하세요.",
+];
+
+// 4) 마무리 전략
+const endingStrategies = [
+  "센터 홍보·다짐 문구 없이, 한 장면의 여운으로 끝내세요.",
+  "어르신의 말 한마디 인용으로 마무리하세요.",
+  "내일에 대한 작은 기대 한 줄로 끝내되 '최선을 다하겠습니다' 류는 금지.",
+  "질문이나 여백을 남기며 끝내세요.",
+];
+
+const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+const getRandomPersona = () => pick(stylePersonas);
+
+// 금지 규칙·검사 로직은 ./guards.ts 단일 출처에서 가져온다.
 
 // Dynamic System Instruction Template
-const getSystemInstruction = (region: string, centerName: string, styleConfig: StyleConfig | null, fallbackTonePrompt?: string | null, selectedPersona?: typeof stylePersonas[0]) => {
+const getSystemInstruction = (
+  region: string,
+  centerName: string,
+  styleConfig: StyleConfig | null,
+  fallbackTonePrompt: string | null | undefined,
+  selectedPersona: typeof stylePersonas[0],
+  directives: { opening: string; structure: string; perspective: string; ending: string },
+  recentSamples: RecentSample[],
+) => {
   const hasStyleReference = styleConfig?.styleReferenceText?.trim();
   const hasCustomPrompt = styleConfig?.customPrompt?.trim() || fallbackTonePrompt?.trim();
-  const persona = selectedPersona || getRandomPersona();
-  
-  // Build Style Mimicry section if reference text exists
+
   const styleMimicrySection = hasStyleReference ? `
 # 🎯 Style Mimicry (최우선 적용)
 
@@ -64,16 +124,28 @@ const getSystemInstruction = (region: string, centerName: string, styleConfig: S
 ${styleConfig?.styleReferenceText}
 ---
 
-⚠️ 중요: 위 예시 글의 문체를 완벽하게 모방하세요.
+⚠️ 중요: 위 예시 글의 '문체와 어조'를 모방하되, 문장을 그대로 베끼지는 마세요.
 ` : '';
 
-  // Build User Instructions section
   const userInstructionsSection = hasCustomPrompt ? `
 # ✍️ User Instructions (관리자 지시사항)
 
 다음 지침을 엄격히 따르세요:
 
 ${styleConfig?.customPrompt || fallbackTonePrompt}
+` : '';
+
+  // 최근 글 도입부 — 이렇게 시작하지 말 것
+  const recentOpenings = recentSamples
+    .map((s) => (s.opening || s.title || "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  const recentSection = recentOpenings.length > 0 ? `
+# 🚫 최근에 이미 쓴 도입/제목 (절대 비슷하게 시작하지 말 것)
+
+아래는 최근 발행된 글들의 도입부입니다. 이와 비슷한 문장·구조·소재로 시작하면 실패입니다. 완전히 다른 방식으로 여세요.
+
+${recentOpenings.map((o, i) => `${i + 1}. "${o.slice(0, 50)}…"`).join("\n")}
 ` : '';
 
   return `# Role Definition
@@ -85,168 +157,127 @@ Today is ${new Date().toLocaleDateString('ko-KR')}.
 글을 작성할 때 다음 지침을 엄격히 따르세요:
 
 1. **Identity:** 모든 문장에서 화자는 반드시 '${centerName}'여야 합니다.
-2. **Localization:** 글의 도입부나 마무리, 그리고 문맥에 맞게 '${region}' 지역의 날씨나 분위기, 지역 주민들과의 유대감을 자연스럽게 언급하세요.
-   - 예시: "이곳 ${region}에도 따스한 봄바람이 불어옵니다."
+2. **Localization:** 글의 도입부나 마무리에 '${region}' 지역색을 자연스럽게 녹이세요. 단, "이곳 ${region}에도 ~"로 시작하는 상투적 도입은 금지합니다. 지역 언급은 글 중간이나 후반에 자연스럽게 한 번만 하세요.
 3. **Hashtags:** 해시태그 생성 시 지역명과 센터명을 반드시 포함하세요.
    - 필수 태그: #${region.replace(/\s/g, '')}주야간보호 #${centerName.replace(/\s/g, '')} #${region.replace(/\s/g, '')}노인돌봄
 ${styleMimicrySection}
 ${userInstructionsSection}
+${recentSection}
 
-# 🎭 TODAY'S WRITING DIRECTOR: ${persona.name}
+# 🎭 TODAY'S WRITING DIRECTOR: ${selectedPersona.name}
 
-**Instruction:** ${persona.prompt}
+**Instruction:** ${selectedPersona.prompt}
 
-⚠️ CRITICAL: 반드시 위 디렉터의 스타일로 글 전체를 작성하세요. 이것이 오늘의 글쓰기 톤입니다.
+# 🎲 TODAY'S COMPOSITION DIRECTIVES (매번 달라지는 작문 지시 — 반드시 따를 것)
 
-# [🔒 CRITICAL BAN LIST - NEVER USE THESE WORDS]
+- **도입:** ${directives.opening}
+- **구조:** ${directives.structure}
+- **관점:** ${directives.perspective}
+- **마무리:** ${directives.ending}
 
-If you use these words, the system will fail. 이 단어들을 사용하면 시스템이 실패합니다.
+⚠️ 위 4개 지시는 오늘 글에만 적용되는 '변주 규칙'입니다. 이전 글과 다른 글이 나오도록 반드시 반영하세요.
 
-🚫 **Banned Words (절대 금지 단어):** "웃음꽃", "피어나는", "피어났습니다", "가득한", "넘치는", "선물", "행복한 하루", "따뜻한 사랑", "힐링", "활력"
+# [🔒 CRITICAL BAN LIST - NEVER USE THESE]
 
-🚫 **Banned Patterns (절대 금지 패턴):** "~하는 하루였습니다", "~가 피어나는 시간이었습니다", "따뜻한 ~로 가득 찼습니다", "~하는 하루", "~한 일상"
+이 표현을 쓰면 글은 실패 처리됩니다.
 
-🚫 **Banned Visual References (시각 참조 금지):**
-- "모습입니다", "모습이죠?", "모습이에요"
-- "보이시나요?", "보이죠?", "보이네요"
-- "사진 속", "위 장면은", "아래 사진", "이 사진은"
-- "함께 보시죠", "한번 보세요"
-- "눈에 띕니다", "눈길을 끕니다"
-- "여기 계신", "저기 계신"
-- "~하는 모습", "~하시는 장면"
-- "느껴지지 않나요?", "전해지시나요?"
+🚫 **금지 단어:** ${BANNED_WORDS.map((w) => `"${w}"`).join(", ")}
 
-**이유:** 이런 표현들은 독자가 사진을 보고 있다는 전제를 깔기 때문에, 글의 독립성을 해칩니다.
+🚫 **금지 도입/상투 문구 (이렇게 시작하거나 그대로 쓰지 말 것):**
+${BANNED_OPENERS.map((o) => `- "${o}…"`).join("\n")}
+- "이곳 ${region}에도 따스한 (봄바람/햇살)이…"
+- "어르신들이 가장 환하게 웃으시는 순간이 언제인지 아시나요"
+
+🚫 **금지 패턴:** ${BANNED_PATTERNS.map((p) => `"${p}"`).join(", ")} (그리고 "~하는 하루", "~하는 모습" 류 상투구)
+
+🚫 **전문용어 남발 금지:** ${OVERUSED_TERMS.map((t) => `"${t}"`).join(", ")} 같은 효과 설명은 **글 전체에서 최대 1회만** 사용하세요. 모든 활동마다 반복하면 기계가 쓴 글처럼 보입니다.
+
+🚫 **시각 참조 금지 (사진을 보고 있다는 전제 금지):** ${BANNED_VISUAL.map((v) => `"${v}"`).join(", ")}
 
 # ✍️ BODY WRITING RULES
 
-**핵심 원칙: "Show, Don't Tell" - "독자가 라디오로 듣고 있어도 충분히 감동받을 수 있는 글"**
+**핵심 원칙: "Show, Don't Tell" — 독자가 라디오로 듣고 있어도 충분히 그려지는 글.**
 
-사진을 '설명'하지 말고, 활동을 통해 느낀 '감정'과 '분위기'를 독립적인 에세이로 작성하세요.
+사진을 '설명'하지 말고, 활동을 통해 느낀 분위기를 독립적인 에세이로 쓰세요.
 
-## 1. 감각과 감정 중심 묘사
+- 감정을 단정("행복했습니다")하지 말고 행동·말·소리로 보여주세요.
+- 활동을 나열하지 말고, 그 활동이 가져온 '작은 변화'를 적으세요.
+- 같은 문장 구조를 연달아 쓰지 말고 문장 길이를 들쭉날쭉하게 변주하세요.
 
-❌ 금지: "they were happy" / "어르신이 팔을 뻗는 모습이 보입니다"
-✅ 권장: "they clapped their hands and hummed a song" / "굳어있던 어깨를 활짝 펴니, 마음속 답답함까지 시원하게 날아가는 기분입니다."
-
-## 2. 활동을 '이야기'로 전환
-
-활동을 설명하려 하지 말고, **그 활동이 가져온 '변화'와 '에피소드'**를 적으세요.
-
-❌ 설명조: "오늘은 색종이로 꽃을 만들었습니다."
-✅ 이야기조: "손끝에 닿는 종이의 바스락거리는 소리가 센터를 가득 채웠습니다. 종이 한 장이 예쁜 꽃으로 변하는 과정은 언제 봐도 마법 같습니다."
-
-## 3. 글 구조
-
-**Structure:** Intro (Hook) -> Activity Description -> Professional Benefit -> Outro
-
-활동 관련 키워드가 나오면:
-1. 어르신의 감성적 반응(표정이 아닌 말씀, 목소리, 분위기)
-2. 해당 활동의 전문적 기대효과(치매 예방, 소근육 발달, 인지 기능 등)
-를 자연스럽게 엮어서 서술하세요.
-
-## 4. 이미지 플레이스홀더 배치 (최우선 규칙)
+## 이미지 플레이스홀더 배치 (필수 규칙)
 
 ### 절대 규칙: 이미지가 항상 텍스트보다 먼저!
+[도입 1~2문장] → [IMAGE_PLACEHOLDER_1] → [이미지1 관련 서술] → [IMAGE_PLACEHOLDER_2] → [이미지2 관련 서술] → … → [마무리]
 
-금지: [텍스트 설명] 다음에 [IMAGE_PLACEHOLDER]가 오는 구조
-허용: [IMAGE_PLACEHOLDER] 다음에 [텍스트 설명]이 오는 구조 (필수!)
+- 각 IMAGE_PLACEHOLDER_N 바로 뒤에 그 이미지 관련 내용을 쓰세요.
+- 플레이스홀더 앞에 긴 설명 문단을 두지 마세요.
 
-### 정확한 구조:
-[도입부 1~2문장] → [IMAGE_PLACEHOLDER_1] → [이미지 1 설명] → [IMAGE_PLACEHOLDER_2] → [이미지 2 설명] → [마무리]
-
-### 주의사항:
-- 이미지 플레이스홀더 앞에 해당 이미지를 설명하는 긴 문단이 오면 안 됩니다
-- 각 IMAGE_PLACEHOLDER_N 바로 뒤에 그 이미지와 관련된 내용을 작성하세요
-- 도입부는 짧게 (1~2문장), 본격적인 내용은 이미지 뒤에 작성하세요
-
-## 5. 기본 톤앤매너
+## 기본 톤앤매너
 ${hasStyleReference ? '\n(⚠️ 예시 글이 설정되어 있으므로 예시 글의 문체를 우선합니다)\n' : `
-부드럽고 공손한 '해요체'를 사용하세요. 문단은 3~4줄로 짧게 끊고, 따뜻한 이모지(😊, 🌞, 🌸 등)를 적절히 사용하세요.
+부드럽고 공손한 '해요체'를 기본으로 하되, 위 디렉터/관점 지시에 맞춰 조정하세요. 문단은 3~4줄로 끊고, 이모지(😊, 🌞 등)는 한 글에 2~3개 이내로만 절제해서 쓰세요.
 `}
 
-# Few-shot Example
+# 📐 구조 예시 (배치 '방식'만 참고 — 아래 괄호 속 문장은 절대 그대로 쓰지 말 것)
 
-**(입력)**
-- 이미지 1 키워드: 오전 체조
-- 이미지 2 키워드: 점심 식사, 불고기
-- 이미지 3 키워드: 오후 미술활동, 색칠
-
-**(나쁜 예 - 절대 금지)**
-
-오전에는 체조를 했습니다. 어르신들이 팔을 들고 계신 모습이 참 건강해 보이죠?
-[IMAGE_PLACEHOLDER_1]
-점심시간에는 맛있는 불고기를 먹었습니다.
-[IMAGE_PLACEHOLDER_2]
--> 텍스트가 이미지보다 먼저 나오면 안 됩니다!
-
-**(좋은 예 - 반드시 이렇게: 이미지가 먼저!)**
-
-오늘 ${centerName}에는 활기찬 하루가 열렸습니다. ✨
+(도입 1~2문장 — 위 '도입 지시'에 따라 매번 새롭게)
 
 [IMAGE_PLACEHOLDER_1]
 
-나른한 아침을 깨우는 데는 힘찬 체조만 한 게 없지요. 신나는 트로트 가락에 맞춰 몸을 흔들다 보면 이마에는 땀방울이 맺히고 얼굴에는 생기가 돕니다. "아이고 시원하다!" 하며 서로 마주 보고 웃으시는 순간들이 모여, 오늘 하루를 지탱하는 에너지가 되었습니다.
+(첫 번째 사진 활동의 분위기와 어르신 반응을 2~3문장으로, 직접 새로 지어서)
 
 [IMAGE_PLACEHOLDER_2]
 
-땀 흘린 뒤의 밥은 언제나 꿀맛이지요. 오늘 점심은 달짝지근한 불고기였는데요, "입맛이 돈다"시며 그릇을 싹 비우시는 분들이 많으셨습니다. 잘 드시는 것이야말로 건강의 첫걸음이니까요. 🍚
+(다음 사진 내용을 앞과 다른 표현·다른 문장 길이로)
 
-[IMAGE_PLACEHOLDER_3]
+… (사진 수만큼 반복) …
 
-든든하게 배를 채우고 나니, 손끝에 닿는 종이의 바스락거리는 소리가 센터를 채웠습니다. 색연필을 쥔 손은 어느새 화가의 손이 되어, 하얀 종이 위에 저마다의 이야기를 그려냅니다. 소근육을 사용하는 활동은 뇌를 자극해 인지 기능 향상에 도움이 된답니다. 🎨
+(마무리 — 위 '마무리 지시'에 따라)
 
-# 🏷️ 제목 생성 규칙 (CRITICAL)
+⚠️ 위 괄호 안내문은 뼈대일 뿐입니다. 실제 문장은 100% 새로 창작하세요. 예시처럼 보이는 어떤 문장도 그대로 쓰면 안 됩니다.
 
-## 1. 본문 분석 우선
-- 본문 내용을 분석하여 가장 핵심적인 **'구체적 활동'** 1~2가지를 추출하세요. (예: 윷놀이, 송편 빚기, 소방 훈련, 미술 치료, 족욕 등)
+# 🏷️ 제목 생성 규칙
 
-## 2. 🚫 제목 금지어 (절대 사용 금지)
-다음 상투적 표현이 제목에 포함되면 **절대 안 됩니다:**
+- 본문의 가장 구체적인 활동 1~2개를 뽑아 제목에 드러내세요. (예: 윷놀이, 송편 빚기, 파라핀)
 - 금지 단어: "피어나는", "웃음꽃", "행복한 하루", "가득한", "넘치는", "활력", "일상", "따뜻한"
-- 금지 패턴: "~하는 하루", "~한 일상", "~가 피어났습니다"
-
-## 3. 제목 작성 공식
-**[활동 명사] + [구체적 서술]** 조합을 최우선으로 사용하세요.
-감성적인 수식어보다는 **'무엇을 했는지'**가 드러나야 합니다.
-
-### ❌ 나쁜 예시 (사용 금지)
-- 웃음꽃 피어나는 늘봄의 행복한 하루
-- 활력이 가득한 즐거운 시간
-- 따뜻한 정이 넘치는 일상
-
-### ✅ 좋은 예시 (이렇게 작성)
-- 고소한 냄새 솔솔~ 우리 어르신들과 함께한 '송편 빚기' 시간 🥟
-- "내가 윷놀이 왕!" 승부욕 활활 타오른 척사대회 현장
-- 굳은 어깨가 활짝! 오늘은 시원한 '아로마 마사지' 받는 날 💆‍♀️
-- 화재 대피 훈련, 어르신들과 침착하게 대처법을 배웠습니다
-- 색색깔 물감 찍찍! 오늘은 우리가 예술가 🎨
-- "이게 진짜 감이라고?" 깜짝 놀라신 곶감 만들기 체험
-
-## 4. 문장 구조 변주
-서술형, 의문형, 감탄형 등 문장 구조를 매번 다르게 변주하세요:
-- 서술형: "오늘은 ○○○를 했습니다"
-- 감탄형: "와! ○○○ 대성공!"
-- 의문형: "어르신들의 숨은 재능, 알고 계셨나요?"
-- 인용형: "\"○○○\" 어르신들의 함성이 울려 퍼졌습니다"
+- 매번 문장 구조를 바꾸세요(서술형/감탄형/의문형/인용형 번갈아).
 
 # 해시태그 지침
-
-해시태그 생성 시 지역 키워드를 적극적으로 포함하세요:
 - #${centerName.replace(/\s/g, '')} (필수)
-- #${region.replace(/\s/g, '')}주야간보호
-- #${region.replace(/\s/g, '')}노인돌봄
-- #${region.replace(/\s/g, '')}데이케어
+- #${region.replace(/\s/g, '')}주야간보호 / #${region.replace(/\s/g, '')}노인돌봄 / #${region.replace(/\s/g, '')}데이케어
 - 그 외 활동 관련 해시태그
 
 # 결과 형식
 
-JSON 형식으로 반환하세요:
+JSON 형식으로만 반환하세요:
 {
-  "title": "블로그 제목 (위 규칙을 엄격히 따름 - 금지어 절대 사용 금지)",
-  "content": "본문 내용 (이미지 플레이스홀더 포함)",
-  "hashtags": ["#${centerName.replace(/\s/g, '')}", "#${region.replace(/\s/g, '')}주야간보호", "#해시태그3", ...최대 10개]
+  "title": "블로그 제목 (금지어 사용 금지)",
+  "content": "본문 (이미지 플레이스홀더 포함)",
+  "hashtags": ["#${centerName.replace(/\s/g, '')}", "#${region.replace(/\s/g, '')}주야간보호", ...최대 10개]
 }`;
+};
+
+// AI 게이트웨이 호출
+const callAI = async (apiKey: string, systemInstruction: string, userContent: unknown[]) => {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemInstruction },
+        { role: "user", content: userContent },
+      ],
+      max_tokens: 4096,
+      // 보조 수단: 다양성/반복 억제 (메인은 프롬프트 변주 + 서버 가드)
+      temperature: 1.05,
+      frequency_penalty: 0.4,
+      presence_penalty: 0.3,
+    }),
+  });
+  return response;
 };
 
 serve(async (req) => {
@@ -255,8 +286,8 @@ serve(async (req) => {
   }
 
   try {
-    const { photos, centerName, region, writingTonePrompt, styleConfig } = await req.json();
-    
+    const { photos, centerName, region, writingTonePrompt, styleConfig, recentSamples } = await req.json();
+
     if (!photos || !Array.isArray(photos) || photos.length === 0) {
       throw new Error("사진 데이터가 필요합니다.");
     }
@@ -266,11 +297,9 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Use dynamic center name and region from user profile
     const dynamicCenterName = centerName || "늘봄주야간보호센터";
     const dynamicRegion = region || "";
-    
-    // Parse style config if it's a string
+
     let parsedStyleConfig: StyleConfig | null = null;
     if (styleConfig) {
       try {
@@ -279,228 +308,192 @@ serve(async (req) => {
         console.error("Error parsing styleConfig:", e);
       }
     }
-    
-    // Select random writing persona for this generation
+
+    const samples: RecentSample[] = Array.isArray(recentSamples) ? recentSamples : [];
+    const recentOpenings = samples
+      .map((s) => (s.opening || s.title || "").trim())
+      .filter(Boolean);
+
+    // 이번 생성의 무작위 변주 조합
     const selectedPersona = getRandomPersona();
-    
-    // Generate dynamic system instruction with simplified style config and selected persona
-    const systemInstruction = getSystemInstruction(dynamicRegion, dynamicCenterName, parsedStyleConfig, writingTonePrompt, selectedPersona);
-
-    console.log(`Generating blog for center: ${dynamicCenterName}, region: ${dynamicRegion}, persona: ${selectedPersona.name}, hasReferenceText: ${parsedStyleConfig?.styleReferenceText ? 'yes' : 'no'}, hasCustomPrompt: ${parsedStyleConfig?.customPrompt ? 'yes' : 'no'}`);
-
-    // Build multimodal message content
-    const userContent: any[] = [
-      {
-        type: "text",
-        text: `다음은 오늘 하루 '${dynamicRegion} ${dynamicCenterName}'의 활동 사진들을 시간 순서대로 나열한 것입니다. 각 사진과 키워드를 참고하여, 사진의 흐름에 따라 자연스러운 하루 일과를 담은 블로그 포스팅을 작성해주세요.\n\n총 ${photos.length}장의 사진이 있습니다.\n\n`
-      }
-    ];
-
-    // Add each photo with its keyword
-    for (let i = 0; i < photos.length; i++) {
-      const photo = photos[i];
-      
-      userContent.push({
-        type: "text",
-        text: `--- 사진 ${i + 1} ---`
-      });
-      
-      userContent.push({
-        type: "image_url",
-        image_url: {
-          url: photo.imageUrl
-        }
-      });
-      
-      userContent.push({
-        type: "text",
-        text: `사진 ${i + 1} 키워드: ${photo.keyword || "키워드 없음"}\n`
-      });
-    }
-
-    userContent.push({
-      type: "text",
-      text: "\n위 사진들의 흐름을 자연스럽게 연결하여 하나의 완성된 이야기로 작성하고, 적절한 위치에 이미지 플레이스홀더를 꼭 넣어주세요. JSON 형식으로 응답해주세요."
-    });
-
-    console.log("Sending request to Lovable AI with", photos.length, "photos");
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemInstruction },
-          { role: "user", content: userContent }
-        ],
-        max_tokens: 4096, // Ensure sufficient response length
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "크레딧이 부족합니다. 충전 후 다시 시도해주세요." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const aiContent = data.choices?.[0]?.message?.content;
-    
-    if (!aiContent) {
-      throw new Error("AI 응답이 비어있습니다.");
-    }
-
-    console.log("AI response received:", aiContent.substring(0, 500));
-
-    // Helper function to strip markdown code blocks
-    const stripMarkdownCodeBlocks = (text: string): string => {
-      // Remove ```json ... ``` or ``` ... ``` wrapper
-      const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (codeBlockMatch) {
-        return codeBlockMatch[1].trim();
-      }
-      return text.trim();
+    const directives = {
+      opening: pick(openingStrategies),
+      structure: pick(structureStrategies),
+      perspective: pick(perspectiveStrategies),
+      ending: pick(endingStrategies),
     };
 
-    // Helper function to extract content from partial/broken JSON
-    const extractContentFromBrokenJson = (text: string): { title?: string; content?: string; hashtags?: string[] } => {
-      const result: { title?: string; content?: string; hashtags?: string[] } = {};
-      
-      // Extract title
-      const titleMatch = text.match(/"title"\s*:\s*"([^"]+)"/);
-      if (titleMatch) {
-        result.title = titleMatch[1];
+    const systemInstruction = getSystemInstruction(
+      dynamicRegion,
+      dynamicCenterName,
+      parsedStyleConfig,
+      writingTonePrompt,
+      selectedPersona,
+      directives,
+      samples,
+    );
+
+    console.log(`Generating blog: center=${dynamicCenterName}, persona=${selectedPersona.name}, recentSamples=${samples.length}`);
+
+    // 멀티모달 user content 구성
+    const buildUserContent = (feedback?: string[]): unknown[] => {
+      const userContent: unknown[] = [
+        {
+          type: "text",
+          text: `다음은 오늘 '${dynamicRegion} ${dynamicCenterName}'의 활동 사진들을 시간 순서대로 나열한 것입니다. 사진의 흐름에 따라 자연스러운 하루를 담은 블로그 포스팅을 작성하세요.\n\n총 ${photos.length}장의 사진이 있습니다.\n\n`,
+        },
+      ];
+
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
+        userContent.push({ type: "text", text: `--- 사진 ${i + 1} ---` });
+        userContent.push({ type: "image_url", image_url: { url: photo.imageUrl } });
+        userContent.push({ type: "text", text: `사진 ${i + 1} 키워드: ${photo.keyword || "키워드 없음"}\n` });
       }
-      
-      // Extract content - handle escaped newlines and quotes
+
+      let closing = "\n위 사진들의 흐름을 자연스럽게 연결하여 하나의 완성된 이야기로 작성하고, 적절한 위치에 이미지 플레이스홀더를 꼭 넣어주세요. JSON 형식으로 응답해주세요.";
+      if (feedback && feedback.length > 0) {
+        closing += `\n\n⚠️ 직전 시도가 다음 문제로 거부되었습니다. 반드시 고쳐서 다시 쓰세요:\n- ${feedback.join("\n- ")}`;
+      }
+      userContent.push({ type: "text", text: closing });
+      return userContent;
+    };
+
+    // 파서 (다단계 폴백)
+    const stripMarkdownCodeBlocks = (text: string): string => {
+      const m = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+      return m ? m[1].trim() : text.trim();
+    };
+    const extractContentFromBrokenJson = (text: string) => {
+      const result: { title?: string; content?: string; hashtags?: string[] } = {};
+      const titleMatch = text.match(/"title"\s*:\s*"([^"]+)"/);
+      if (titleMatch) result.title = titleMatch[1];
       const contentMatch = text.match(/"content"\s*:\s*"([\s\S]*?)(?:"\s*,\s*"hashtags"|"\s*}|$)/);
       if (contentMatch) {
-        let content = contentMatch[1];
-        // Clean up the content
-        content = content
-          .replace(/\\n/g, '\n')
-          .replace(/\\"/g, '"')
-          .replace(/\\t/g, '\t')
-          .replace(/\s*"\s*$/, ''); // Remove trailing quote if present
-        result.content = content;
+        result.content = contentMatch[1]
+          .replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\t/g, '\t').replace(/\s*"\s*$/, '');
       }
-      
-      // Extract hashtags
       const hashtagsMatch = text.match(/"hashtags"\s*:\s*\[([\s\S]*?)\]/);
       if (hashtagsMatch) {
-        const hashtagsStr = hashtagsMatch[1];
-        const hashtags = hashtagsStr.match(/"([^"]+)"/g);
-        if (hashtags) {
-          result.hashtags = hashtags.map(h => h.replace(/"/g, ''));
-        }
+        const hashtags = hashtagsMatch[1].match(/"([^"]+)"/g);
+        if (hashtags) result.hashtags = hashtags.map((h) => h.replace(/"/g, ''));
       }
-      
       return result;
     };
 
-    // Multi-stage JSON parsing
-    let parsedContent;
     const regionTag = dynamicRegion ? `#${dynamicRegion.replace(/\s/g, '')}주야간보호` : '#주야간보호';
     const defaultHashtags = [`#${dynamicCenterName.replace(/\s/g, '')}`, regionTag, `#${dynamicRegion.replace(/\s/g, '')}노인돌봄`];
-    
-    try {
-      // Stage 1: Strip markdown code blocks first
-      const cleanedContent = stripMarkdownCodeBlocks(aiContent);
-      console.log("Cleaned content (first 200 chars):", cleanedContent.substring(0, 200));
-      
-      // Stage 2: Try direct JSON parse
+
+    const parseAIResponse = (aiContent: string) => {
+      const cleaned = stripMarkdownCodeBlocks(aiContent);
       try {
-        parsedContent = JSON.parse(cleanedContent);
-        console.log("JSON parsed successfully via direct parse");
-      } catch (directParseError) {
-        console.log("Direct parse failed, trying regex extraction...");
-        
-        // Stage 3: Try to extract JSON object using regex
-        const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
+        return JSON.parse(cleaned);
+      } catch {
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          try {
-            parsedContent = JSON.parse(jsonMatch[0]);
-            console.log("JSON parsed successfully via regex extraction");
-          } catch (regexParseError) {
-            console.log("Regex extraction parse failed, trying field extraction...");
-            
-            // Stage 4: Extract fields individually from broken JSON
-            const extracted = extractContentFromBrokenJson(cleanedContent);
-            if (extracted.content) {
-              parsedContent = {
-                title: extracted.title || "오늘 하루도 따뜻했습니다 🌸",
-                content: extracted.content,
-                hashtags: extracted.hashtags || defaultHashtags
-              };
-              console.log("Content extracted from broken JSON");
-            } else {
-              throw new Error("Could not extract content from JSON");
-            }
-          }
-        } else {
-          // Stage 5: No JSON found, try field extraction from raw content
-          const extracted = extractContentFromBrokenJson(aiContent);
-          if (extracted.content) {
-            parsedContent = {
-              title: extracted.title || "오늘 하루도 따뜻했습니다 🌸",
-              content: extracted.content,
-              hashtags: extracted.hashtags || defaultHashtags
-            };
-            console.log("Content extracted from raw response");
-          } else {
-            throw new Error("No JSON structure found in response");
-          }
+          try { return JSON.parse(jsonMatch[0]); } catch { /* fall through */ }
         }
+        const extracted = extractContentFromBrokenJson(cleaned || aiContent);
+        if (extracted.content) {
+          return {
+            title: extracted.title || "오늘 하루의 기록",
+            content: extracted.content,
+            hashtags: extracted.hashtags || defaultHashtags,
+          };
+        }
+        // 최종 폴백: 원문 정리
+        const fb = aiContent.replace(/```(?:json)?\s*/g, '').replace(/```/g, '')
+          .replace(/^\s*\{\s*"title"\s*:\s*"[^"]*"\s*,?\s*/g, '')
+          .replace(/^\s*"content"\s*:\s*"/g, '')
+          .replace(/",?\s*"hashtags"\s*:\s*\[[\s\S]*?\]\s*\}?\s*$/g, '')
+          .replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\t/g, '\t').trim();
+        return { title: "오늘 하루의 기록", content: fb, hashtags: defaultHashtags };
       }
-    } catch (parseError) {
-      console.error("All JSON parse attempts failed:", parseError);
-      
-      // Final fallback: Clean up raw text and use as content
-      let fallbackContent = aiContent;
-      
-      // Remove markdown code blocks
-      fallbackContent = fallbackContent.replace(/```(?:json)?\s*/g, '').replace(/```/g, '');
-      
-      // Remove JSON syntax artifacts
-      fallbackContent = fallbackContent
-        .replace(/^\s*\{\s*"title"\s*:\s*"[^"]*"\s*,?\s*/g, '')
-        .replace(/^\s*"content"\s*:\s*"/g, '')
-        .replace(/",?\s*"hashtags"\s*:\s*\[[\s\S]*?\]\s*\}?\s*$/g, '')
-        .replace(/\\n/g, '\n')
-        .replace(/\\"/g, '"')
-        .replace(/\\t/g, '\t')
-        .trim();
-      
-      parsedContent = {
-        title: "오늘 하루도 따뜻했습니다 🌸",
-        content: fallbackContent,
-        hashtags: defaultHashtags
-      };
-      console.log("Using fallback content extraction");
+    };
+
+    // ── 생성 루프: 최대 2회 (위반 시 피드백 포함 재생성) ──────────
+    let parsedContent: { title?: string; content?: string; hashtags?: string[] } | null = null;
+    let feedback: string[] | undefined = undefined;
+    const MAX_ATTEMPTS = 2;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const userContent = buildUserContent(feedback);
+      const response = await callAI(LOVABLE_API_KEY, systemInstruction, userContent);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("AI gateway error:", response.status, errorText);
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "크레딧이 부족합니다. 충전 후 다시 시도해주세요." }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        throw new Error(`AI gateway error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const aiContent = data.choices?.[0]?.message?.content;
+      if (!aiContent) throw new Error("AI 응답이 비어있습니다.");
+
+      const candidate = parseAIResponse(aiContent);
+      const violations = findViolations(`${candidate.title || ""}\n${candidate.content || ""}`, recentOpenings);
+
+      console.log(`Attempt ${attempt}: violations=${violations.length}`, violations);
+
+      if (violations.length === 0 || attempt === MAX_ATTEMPTS) {
+        parsedContent = candidate;
+        break;
+      }
+      // 위반 → 피드백 담아 한 번 더
+      feedback = violations;
     }
 
-    return new Response(
-      JSON.stringify(parsedContent),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // 최종 게이트: 금지 단어는 안전 치환, 그래도 남는 HARD 위반은 거부(422)
+    if (parsedContent) {
+      const wordResidual = findViolations(
+        `${parsedContent.title || ""}\n${parsedContent.content || ""}`,
+        recentOpenings,
+        { includeSoft: false },
+      );
+      if (wordResidual.length > 0) {
+        // 치환 가능한 금지 단어 후처리
+        if (parsedContent.title) parsedContent.title = sanitize(parsedContent.title);
+        if (parsedContent.content) parsedContent.content = sanitize(parsedContent.content);
+      }
 
+      // 치환으로도 못 고치는 HARD 위반(도입 상투구·도입 유사·용어 남발) 잔여 시 거부
+      const hardResidual = findViolations(
+        `${parsedContent.title || ""}\n${parsedContent.content || ""}`,
+        recentOpenings,
+        { includeSoft: false },
+      );
+      if (hardResidual.length > 0) {
+        console.warn("Hard violations remain after sanitize, rejecting (422):", hardResidual);
+        return new Response(
+          JSON.stringify({
+            error: "생성된 글이 반복 표현 기준을 통과하지 못했습니다. 다시 시도해주세요.",
+            violations: hardResidual,
+          }),
+          { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
+    // SOFT 잔여 집계 로그 (추후 임계 조정용 — 패턴/시각참조가 통과글에 얼마나 남는지)
+    if (parsedContent) {
+      const finalText = `${parsedContent.title || ""}\n${parsedContent.content || ""}`;
+      const allIssues = findViolations(finalText, recentOpenings, { includeSoft: true });
+      const hardIssues = findViolations(finalText, recentOpenings, { includeSoft: false });
+      const softCount = allIssues.length - hardIssues.length;
+      console.log(`SOFT_RESIDUAL count=${softCount}` + (softCount > 0 ? ` items=${JSON.stringify(allIssues.slice(hardIssues.length))}` : ""));
+    }
+
+    return new Response(JSON.stringify(parsedContent), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Error in generate-blog-vision:", error);
     return new Response(
