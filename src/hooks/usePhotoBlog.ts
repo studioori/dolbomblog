@@ -46,42 +46,59 @@ export const usePhotoBlog = (options?: UsePhotoBlogOptions): UsePhotoBlogReturn 
     const fileNames: string[] = [];
     const sessionId = `session-${Date.now()}`;
 
-    for (let i = 0; i < photos.length; i++) {
-      const photo = photos[i];
-      const fileExt = photo.file.name.split('.').pop();
-      const fileName = `${sessionId}/${i + 1}-${Date.now()}.${fileExt}`;
+    try {
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
+        const fileExt = photo.file.name.split('.').pop();
+        const fileName = `${sessionId}/${i + 1}-${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('daily-photos')
-        .upload(fileName, photo.file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
+        const { error: uploadError } = await supabase.storage
+          .from('daily-photos')
+          .upload(fileName, photo.file, {
+            cacheControl: '3600',
+            upsert: false,
+          });
 
-      if (uploadError) {
-        throw new Error(`사진 ${i + 1} 업로드 실패: ${uploadError.message}`);
+        if (uploadError) {
+          throw new Error(`사진 ${i + 1} 업로드 실패: ${uploadError.message}`);
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('daily-photos')
+          .getPublicUrl(fileName);
+
+        urls.push(urlData.publicUrl);
+        fileNames.push(fileName);
       }
 
-      const { data: urlData } = supabase.storage
-        .from('daily-photos')
-        .getPublicUrl(fileName);
-
-      urls.push(urlData.publicUrl);
-      fileNames.push(fileName);
+      return { urls, fileNames };
+    } catch (err) {
+      // Cleanup previously uploaded files on partial failure
+      if (fileNames.length > 0) {
+        const { error: cleanupError } = await supabase.storage
+          .from('daily-photos')
+          .remove(fileNames);
+        if (cleanupError) {
+          console.warn('Failed to cleanup during upload failure:', cleanupError);
+        }
+      }
+      throw err;
     }
-
-    return { urls, fileNames };
   };
 
   const cleanupUploadedPhotos = async (fileNames: string[]) => {
     if (fileNames.length === 0) return;
 
     try {
-      await supabase.storage
+      const { error: removeError } = await supabase.storage
         .from('daily-photos')
         .remove(fileNames);
+
+      if (removeError) {
+        console.warn('Failed to cleanup uploaded photos:', removeError);
+      }
     } catch (err) {
-      console.warn('Failed to cleanup uploaded photos:', err);
+      console.warn('Exception during cleanup:', err);
     }
   };
 
