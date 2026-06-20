@@ -9,6 +9,7 @@ import { Loader2, Eye, FileText, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { parseStoryBlocks } from '@/lib/storyBlocks';
 
 interface Post {
   id: string;
@@ -19,64 +20,6 @@ interface Post {
   center_name: string;
   region: string;
 }
-
-// 이미지 플레이스홀더를 실제 이미지로 치환하여 블로그 스타일로 렌더링
-const parseStoryBlocks = (content: string, imagePaths: string[]) => {
-  if (!content) return [];
-  
-  // HTML 태그 제거하고 순수 텍스트로 처리
-  let textContent = content.replace(/<[^>]*>/g, '');
-  
-  // 이미지 플레이스홀더 패턴들을 마커로 치환
-  const imageMarkers: { index: number; imageIndex: number }[] = [];
-  
-  imagePaths.forEach((_, imgIndex) => {
-    const patterns = [
-      `[사진 ${imgIndex + 1}]`,
-      `(사진 ${imgIndex + 1})`,
-      `[이미지 ${imgIndex + 1}]`,
-      `[IMAGE_PLACEHOLDER_${imgIndex + 1}]`,
-      `(사진${imgIndex + 1})`,
-      `[사진${imgIndex + 1}]`,
-    ];
-    
-    patterns.forEach(pattern => {
-      const idx = textContent.indexOf(pattern);
-      if (idx !== -1) {
-        textContent = textContent.replace(pattern, `__IMG_${imgIndex}__`);
-      }
-    });
-  });
-  
-  // 마커를 기준으로 분할
-  const parts = textContent.split(/__IMG_(\d+)__/);
-  const blocks: Array<{ type: 'text' | 'image'; content: string }> = [];
-  
-  parts.forEach((part, i) => {
-    if (i % 2 === 1) {
-      // 홀수 인덱스는 이미지 인덱스 번호
-      const imgIndex = parseInt(part);
-      if (imagePaths[imgIndex]) {
-        blocks.push({ type: 'image', content: imagePaths[imgIndex] });
-      }
-    } else if (part.trim()) {
-      // 짝수 인덱스는 텍스트
-      blocks.push({ type: 'text', content: part });
-    }
-  });
-  
-  // 만약 마커가 없었다면 (이미지가 본문에 삽입되지 않은 경우) 이미지를 앞에 배치
-  if (blocks.every(b => b.type === 'text') && imagePaths.length > 0) {
-    const textBlocks = [...blocks];
-    blocks.length = 0;
-    imagePaths.forEach(path => {
-      blocks.push({ type: 'image', content: path });
-    });
-    blocks.push(...textBlocks);
-  }
-  
-  return blocks;
-};
 
 const GlobalActivityFeed = () => {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -268,13 +211,13 @@ const GlobalActivityFeed = () => {
                   wordBreak: 'keep-all',
                 }}
               >
-                {selectedPost && parseStoryBlocks(selectedPost.content, selectedPost.image_paths || []).map((block, index) => {
-                  if (block.type === 'image') {
+                {selectedPost && parseStoryBlocks(selectedPost.content, selectedPost.image_paths || [], { removeHtml: true, allowFallback: true }).map((block, index) => {
+                  if (block.imageUrl) {
                     return (
                       <img
                         key={index}
-                        src={block.content}
-                        alt={`블로그 이미지 ${index + 1}`}
+                        src={block.imageUrl}
+                        alt={`블로그 이미지 ${(block.imageIndex ?? 0) + 1}`}
                         style={{
                           maxWidth: '100%',
                           height: 'auto',
@@ -287,14 +230,14 @@ const GlobalActivityFeed = () => {
                     );
                   }
                   return (
-                    <p 
-                      key={index} 
-                      style={{ 
+                    <p
+                      key={index}
+                      style={{
                         marginBottom: '1em',
                         whiteSpace: 'pre-wrap',
                       }}
                     >
-                      {block.content}
+                      {block.text}
                     </p>
                   );
                 })}
