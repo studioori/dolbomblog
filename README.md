@@ -1,73 +1,36 @@
-# Welcome to your Lovable project
+# 돌봄 블로그 생성기
 
-## Project info
+돌봄기관을 위한 AI 블로그 자동 생성 서비스입니다. 사진과 메모를 올리면 글을 만들어 줍니다.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 로컬 실행
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+요구 사항: Node.js, npm
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# 1. 의존성 설치
+npm install
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 2. 개발 서버 실행
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+환경 변수는 `.env`에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`를 설정합니다.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 스크립트
 
-**Use GitHub Codespaces**
+| 명령 | 설명 |
+|---|---|
+| `npm run dev` | 개발 서버 |
+| `npm run build` | 프로덕션 빌드 (`dist/`) |
+| `npm run test:run` | 단위 테스트 |
+| `npm run lint` | 린트 |
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 기술 스택
 
-## What technologies are used for this project?
+- Vite, TypeScript, React
+- shadcn-ui, Tailwind CSS
+- Supabase (인증, DB, Edge Functions)
 
-This project is built with:
+## 배포
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Vercel에 연결되어 있으며, `main` 브랜치에 push하면 자동으로 배포됩니다. `vercel.json`에 SPA 리라이트와 월간 사용량 리셋 cron(`/api/reset-monthly`)이 설정되어 있습니다.
